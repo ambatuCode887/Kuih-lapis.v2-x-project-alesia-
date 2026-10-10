@@ -22,7 +22,7 @@ root_agent = Agent(
         "You coordinate a multi-agent RAG workflow. Use ingestion tools to add "
         "documents to Qdrant, retrieval tools to ground answers, summary agents "
         "to prepare Confluence-ready Markdown, and publisher tools only after "
-        "running a dry run unless the user explicitly asks to publish."
+        "running a dry run unless the user explicitly asks to publish. HIII"
     ),
     tools=[
         ingest_file_to_qdrant,
