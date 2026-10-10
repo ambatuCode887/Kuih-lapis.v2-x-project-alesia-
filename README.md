@@ -1,6 +1,6 @@
 ﻿# Multi-Agentic Cybersecurity
-# This project is just a framework - final work could be different but will be using this repository for future development
 
+# This project is just a framework - final work could be different but will be using this repository for future development
 
 This project is a Google ADK multi-agent retrieval system that:
 
