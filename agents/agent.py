@@ -4,7 +4,6 @@ import re
 from typing import AsyncGenerator
 
 from google.adk.agents.base_agent import BaseAgent
-from google.adk.agents.llm_agent import Agent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
 from google.adk.utils.context_utils import Aclosing
@@ -12,8 +11,7 @@ from google.adk.utils.context_utils import Aclosing
 from agents.tools.agents.file_classifier.agent import file_classifier_agent
 from agents.tools.agents.message_agents.agent import message_agent
 from agents.tools.agents.url_check.agent import url_check_agent
-from agents.config import agent_model, load_environment
-from agents.tools.functions.ingest.documents import ingest_file_to_qdrant
+from agents.config import load_environment
 from agents.tools.agents.retrieval.agent import retrieval_agent
 
 load_environment()
@@ -61,6 +59,22 @@ _ANALYSIS_CUES = (
     "this link",
     "this file",
 )
+_URL_ANALYSIS_CUES = (
+    "check this domain",
+    "check this ip",
+    "analyze this url",
+    "analyse this url",
+    "url reputation",
+    "domain reputation",
+    "ip reputation",
+    "scan this link",
+    "look up this domain",
+)
+_FEATURE_VECTOR_CUES = (
+    "feature vector",
+    "precomputed features",
+    "pre-extracted features",
+)
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 
 
@@ -74,8 +88,22 @@ def should_route_to_retrieval(request: str) -> bool:
     return any(term in normalized for term in _CYBER_KNOWLEDGE_TERMS)
 
 
+def route_request_to_agent(request: str) -> str:
+    """Choose a specialist directly, without an LLM orchestration layer."""
+    normalized = request.casefold()
+    if should_route_to_retrieval(request):
+        return "retrieval_agent"
+    if _URL_PATTERN.search(normalized) or any(
+        cue in normalized for cue in _URL_ANALYSIS_CUES
+    ):
+        return "url_check_agent"
+    if any(cue in normalized for cue in _FEATURE_VECTOR_CUES):
+        return "file_classifier_agent"
+    return "message_agent"
+
+
 class RequestRouter(BaseAgent):
-    """Deterministically route knowledge questions or artifact analysis."""
+    """Deterministically route requests to the appropriate specialist."""
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -86,11 +114,7 @@ class RequestRouter(BaseAgent):
             for part in (content.parts if content else [])
             if getattr(part, "text", None)
         )
-        target_name = (
-            "retrieval_agent"
-            if should_route_to_retrieval(request)
-            else "analysis_agent"
-        )
+        target_name = route_request_to_agent(request)
         target = next(
             (agent for agent in self.sub_agents if agent.name == target_name),
             None,
@@ -103,42 +127,16 @@ class RequestRouter(BaseAgent):
                 yield event
 
 
-analysis_agent = Agent(
-    model=agent_model(),
-    name="analysis_agent",
-    description="Orchestrates suspicious-message, link, and file analysis.",
-    instruction=(
-        "You orchestrate scam analysis. For a suspicious user message, delegate "
-        "to message_agent. It analyzes the message and hands its structured risk "
-        "score and confidence to its coordinator_agent child. The coordinator "
-        "then delegates to clarification_agent when evidence is insufficient, "
-        "or verification_agent when it is sufficient. For a link, domain or IP, "
-        "delegate to url_check_agent, which checks reputation and also hands its "
-        "result to its own coordinator_agent child. "
-        "Do not bypass this chain. "
-        "Preserve uncertainty and never claim unrun channel or source checks. "
-        "Do not describe the result "
-        "as a multi-channel assessment unless link or voice signals were actually "
-        "provided. "
-        "Use file_classifier_agent only when the complete matching pre-extracted "
-        "feature vector is available; it cannot inspect raw files or URLs. "
-        "Never present a model score as a confirmed fraud verdict."
+root_agent = RequestRouter(
+    name="root_agent",
+    description=(
+        "Routes requests directly to message analysis, URL reputation, "
+        "precomputed-file classification, or knowledge retrieval specialists."
     ),
-    tools=[
-        ingest_file_to_qdrant,
-    ],
     sub_agents=[
         message_agent(),
         url_check_agent(),
         file_classifier_agent(),
+        retrieval_agent(),
     ],
-)
-
-root_agent = RequestRouter(
-    name="root_agent",
-    description=(
-        "Routes cybersecurity knowledge questions directly to retrieval and "
-        "suspicious artifact analysis to the analysis orchestrator."
-    ),
-    sub_agents=[analysis_agent, retrieval_agent()],
 )
