@@ -13,6 +13,7 @@ except ImportError:  # pragma: no cover - allows lightweight syntax/smoke checks
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_ROOT = Path(__file__).resolve().parent
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 
 def project_env_path() -> Path | None:
@@ -33,6 +34,11 @@ def load_environment() -> None:
 def env(name: str, default: str | None = None) -> str | None:
     load_environment()
     return os.getenv(name, default)
+
+
+def gemini_model() -> str:
+    configured_model = env("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+    return configured_model.strip() if configured_model and configured_model.strip() else DEFAULT_GEMINI_MODEL
 
 
 def required_env(name: str) -> str:

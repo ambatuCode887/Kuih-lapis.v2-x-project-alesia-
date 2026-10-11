@@ -2,31 +2,38 @@ from __future__ import annotations
 
 from google.adk.agents.llm_agent import Agent
 from agents.tools.agents.file_classifier.agent import file_classifier_agent
-
-from agents.config import load_environment
-from agents.tools.agents.retrieval.agent import retrieval_agent
+from agents.tools.agents.message_agents.agent import message_agent
+from agents.config import gemini_model, load_environment
 from agents.tools.functions.ingest.documents import ingest_file_to_qdrant
 from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
-from pathlib import Path
 
 load_environment()
 
 root_agent = Agent(
-    model="gemini-3.5-flash",
+    model=gemini_model(),
     name="root_agent",
-    description="Multi-agent RAG assistant with Qdrant retrieval and Confluence publishing.",
+    description="Scam-awareness assistant with message analysis, file scoring, and Qdrant retrieval.",
     instruction=(
-        "You coordinate a multi-agent RAG workflow. Use ingestion tools to add "
-        "documents to Qdrant, retrieval tools to ground answers, summary agents "
-        "to prepare Confluence-ready Markdown, and publisher tools only after "
-        "running a dry run unless the user explicitly asks to publish."
+        "You orchestrate scam analysis. For a suspicious user message, delegate "
+        "to message_agent. It analyzes the message and hands its structured risk "
+        "score and confidence to its coordinator_agent child. The coordinator "
+        "then delegates to clarification_agent when evidence is insufficient, "
+        "or verification_agent when it is sufficient. Do not bypass this chain. "
+        "Preserve uncertainty and never claim unrun channel or source checks. "
+        "Do not describe the result "
+        "as a multi-channel assessment unless link or voice signals were actually "
+        "provided. "
+        "Use retrieval tools when scam-pattern knowledge can help ground guidance. "
+        "Use file_classifier_agent only when the complete matching pre-extracted "
+        "feature vector is available; it cannot inspect raw files or URLs. "
+        "Never present a model score as a confirmed fraud verdict."
     ),
     tools=[
         ingest_file_to_qdrant,
         retrieve_knowledge,
     ],
     sub_agents=[
-        retrieval_agent(),
+        message_agent(),
         file_classifier_agent(),
     ],
 )

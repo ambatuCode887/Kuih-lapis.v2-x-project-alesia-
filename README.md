@@ -116,6 +116,7 @@ The project expects the following variables in `.env`:
 ```dotenv
 GOOGLE_GENAI_USE_ENTERPRISE=0
 GOOGLE_API_KEY=your_google_api_key_here
+GEMINI_MODEL=gemini-3.5-flash-lite
 
 EMBEDDING_PROVIDER=google
 EMBEDDING_MODEL=gemini-embedding-001
