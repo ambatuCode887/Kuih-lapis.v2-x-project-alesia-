@@ -3,6 +3,7 @@ from __future__ import annotations
 from google.adk.agents.llm_agent import Agent
 from agents.tools.agents.file_classifier.agent import file_classifier_agent
 from agents.tools.agents.message_agents.agent import message_agent
+from agents.tools.agents.url_check.agent import url_check_agent
 from agents.config import gemini_model, load_environment
 from agents.tools.functions.ingest.documents import ingest_file_to_qdrant
 from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
@@ -18,8 +19,9 @@ root_agent = Agent(
         "to message_agent. It analyzes the message and hands its structured risk "
         "score and confidence to its coordinator_agent child. The coordinator "
         "then delegates to clarification_agent when evidence is insufficient, "
-        "or verification_agent when it is sufficient. When the message contains a "
-        "link, the coordinator first uses url_check_agent for domain reputation. "
+        "or verification_agent when it is sufficient. For a link, domain or IP, "
+        "delegate to url_check_agent, which checks reputation and also hands its "
+        "result to its own coordinator_agent child. "
         "Do not bypass this chain. "
         "Preserve uncertainty and never claim unrun channel or source checks. "
         "Do not describe the result "
@@ -36,6 +38,7 @@ root_agent = Agent(
     ],
     sub_agents=[
         message_agent(),
+        url_check_agent(),
         file_classifier_agent(),
     ],
 )
