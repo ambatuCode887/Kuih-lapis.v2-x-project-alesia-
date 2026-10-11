@@ -2,6 +2,8 @@ from pathlib import Path
 
 from google.adk.agents.llm_agent import Agent
 
+from agents.config import gemini_model
+
 from agents.tools.functions.classify import classify_precomputed_features
 
 
@@ -11,7 +13,7 @@ _PROMPT = Path(__file__).parent / "prompt.md"
 def file_classifier_agent() -> Agent:
 	"""Create the sub-agent for scoring pre-extracted file features."""
 	return Agent(
-		model="gemini-3.5-flash",
+		model=gemini_model(),
 		name="file_classifier_agent",
 		description=(
 			"Scores complete, pre-extracted feature vectors with local "
