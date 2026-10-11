@@ -1,5 +1,7 @@
-from .confluence_publisher import confluence_publisher_agent
-from .confluence_summary import confluence_summary_agent
+from .file_classifier import file_classifier_agent
 from .retrieval import retrieval_agent
 
-__all__ = ["confluence_publisher_agent", "confluence_summary_agent", "retrieval_agent"]
+__all__ = [
+	"file_classifier_agent",
+	"retrieval_agent",
+]

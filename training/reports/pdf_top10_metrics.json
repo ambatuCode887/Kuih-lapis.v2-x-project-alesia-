@@ -1,0 +1,72 @@
+{
+  "dataset": "PDF_Top10_features.csv",
+  "rows": 19296,
+  "features": [
+    "text_length",
+    "total_filters",
+    "title_chars",
+    "file_size",
+    "object_count",
+    "stream_count",
+    "endstream_count",
+    "metadata_size",
+    "valid_pdf_header",
+    "entropy_of_streams"
+  ],
+  "target": "label (0=benign, 1=malicious)",
+  "random_state": 42,
+  "test_size": 0.3,
+  "actual_test_fraction": 0.3019796849087894,
+  "train_rows": 13469,
+  "test_rows": 5827,
+  "unique_feature_groups": 15346,
+  "duplicate_feature_rows": 3950,
+  "train_groups": 10742,
+  "test_groups": 4604,
+  "class_counts": {
+    "0": 9297,
+    "1": 9999
+  },
+  "accuracy": 0.9943367084262914,
+  "balanced_accuracy": 0.9944941303375454,
+  "roc_auc": 0.9996894336634317,
+  "confusion_matrix_labels_0_1": [
+    [
+      2785,
+      5
+    ],
+    [
+      28,
+      3009
+    ]
+  ],
+  "classification_report": {
+    "benign": {
+      "precision": 0.9900462140063989,
+      "recall": 0.9982078853046595,
+      "f1-score": 0.9941102980546136,
+      "support": 2790.0
+    },
+    "malicious": {
+      "precision": 0.9983410749834107,
+      "recall": 0.9907803753704314,
+      "f1-score": 0.9945463559742191,
+      "support": 3037.0
+    },
+    "accuracy": 0.9943367084262914,
+    "macro avg": {
+      "precision": 0.9941936444949049,
+      "recall": 0.9944941303375454,
+      "f1-score": 0.9943283270144163,
+      "support": 5827.0
+    },
+    "weighted avg": {
+      "precision": 0.9943694494255143,
+      "recall": 0.9943367084262914,
+      "f1-score": 0.9943375690176893,
+      "support": 5827.0
+    }
+  },
+  "feature_selection_note": "Top10 features were supplied preselected; whether selection used only an independent training split is unknown.",
+  "split_note": "Rows with identical feature vectors were kept in the same split group to prevent duplicate-vector leakage."
+}

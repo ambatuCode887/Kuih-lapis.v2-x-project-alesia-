@@ -1,0 +1,72 @@
+{
+  "dataset": "Word_Top10_Features.csv",
+  "rows": 20000,
+  "features": [
+    "ole_object_count",
+    "ole_object_type_count",
+    "macro_present",
+    "dde_present",
+    "vba_keywords_count",
+    "entropy",
+    "struct_ContentType",
+    "struct_PartName",
+    "file_size",
+    "struct_pos"
+  ],
+  "target": "label (0=benign, 1=malicious)",
+  "random_state": 42,
+  "test_size": 0.3,
+  "actual_test_fraction": 0.29845,
+  "train_rows": 14031,
+  "test_rows": 5969,
+  "unique_feature_groups": 16605,
+  "duplicate_feature_rows": 3395,
+  "train_groups": 11623,
+  "test_groups": 4982,
+  "class_counts": {
+    "0": 10000,
+    "1": 10000
+  },
+  "accuracy": 1.0,
+  "balanced_accuracy": 1.0,
+  "roc_auc": 1.0,
+  "confusion_matrix_labels_0_1": [
+    [
+      2969,
+      0
+    ],
+    [
+      0,
+      3000
+    ]
+  ],
+  "classification_report": {
+    "benign": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 2969.0
+    },
+    "malicious": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 3000.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5969.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5969.0
+    }
+  },
+  "feature_selection_note": "Top10 features were supplied preselected; whether selection used only an independent training split is unknown.",
+  "split_note": "Rows with identical feature vectors were kept in the same split group to prevent duplicate-vector leakage."
+}

@@ -1,0 +1,70 @@
+{
+  "dataset": "HTML_Top13_Features.csv",
+  "rows": 19997,
+  "features": [
+    "url_punct_char_count",
+    "tag_count",
+    "whitespace_ratio",
+    "entropy",
+    "form_count",
+    "embedded_js_count",
+    "html_whitespace_ratio",
+    "script_entropy",
+    "min_link_length",
+    "external_link_count",
+    "total_script_characters",
+    "internal_link_count",
+    "url_digit_count"
+  ],
+  "target": "label (0=benign, 1=malicious)",
+  "random_state": 42,
+  "test_size": 0.3,
+  "train_rows": 13997,
+  "test_rows": 6000,
+  "class_counts": {
+    "0": 9998,
+    "1": 9999
+  },
+  "accuracy": 0.9365,
+  "balanced_accuracy": 0.9365,
+  "roc_auc": 0.9823168333333334,
+  "confusion_matrix_labels_0_1": [
+    [
+      2842,
+      158
+    ],
+    [
+      223,
+      2777
+    ]
+  ],
+  "classification_report": {
+    "benign": {
+      "precision": 0.9272430668841762,
+      "recall": 0.9473333333333334,
+      "f1-score": 0.9371805441055235,
+      "support": 3000.0
+    },
+    "malicious": {
+      "precision": 0.9461669505962521,
+      "recall": 0.9256666666666666,
+      "f1-score": 0.935804549283909,
+      "support": 3000.0
+    },
+    "accuracy": 0.9365,
+    "macro avg": {
+      "precision": 0.9367050087402142,
+      "recall": 0.9365,
+      "f1-score": 0.9364925466947163,
+      "support": 6000.0
+    },
+    "weighted avg": {
+      "precision": 0.9367050087402141,
+      "recall": 0.9365,
+      "f1-score": 0.9364925466947163,
+      "support": 6000.0
+    }
+  },
+  "feature_selection_note": "Top13 features were supplied preselected; whether selection used only an independent training split is unknown.",
+  "filename_note": "file_name is excluded from model inputs. Most filenames occur once under each label, so filenames are not used as split groups; verify whether they identify distinct underlying files."
+}

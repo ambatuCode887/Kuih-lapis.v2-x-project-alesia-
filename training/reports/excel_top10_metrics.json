@@ -1,0 +1,66 @@
+{
+  "dataset": "Excel_Top10_Features.csv",
+  "rows": 20000,
+  "features": [
+    "entropy_of_text",
+    "macro_chr_count",
+    "macro_vocab_size",
+    "macro_arithmetic_operator_count",
+    "macro_token_count",
+    "macro_max_line_length",
+    "remote_template_present",
+    "numeric_cell_count",
+    "string_cell_count",
+    "avg_cell_length"
+  ],
+  "target": "label (0=benign, 1=malicious)",
+  "random_state": 42,
+  "test_size": 0.3,
+  "train_rows": 14000,
+  "test_rows": 6000,
+  "class_counts": {
+    "0": 10000,
+    "1": 10000
+  },
+  "accuracy": 0.9996666666666667,
+  "balanced_accuracy": 0.9996666666666667,
+  "roc_auc": 1.0,
+  "confusion_matrix_labels_0_1": [
+    [
+      2998,
+      2
+    ],
+    [
+      0,
+      3000
+    ]
+  ],
+  "classification_report": {
+    "benign": {
+      "precision": 1.0,
+      "recall": 0.9993333333333333,
+      "f1-score": 0.9996665555185061,
+      "support": 3000.0
+    },
+    "malicious": {
+      "precision": 0.9993337774816788,
+      "recall": 1.0,
+      "f1-score": 0.9996667777407531,
+      "support": 3000.0
+    },
+    "accuracy": 0.9996666666666667,
+    "macro avg": {
+      "precision": 0.9996668887408394,
+      "recall": 0.9996666666666667,
+      "f1-score": 0.9996666666296297,
+      "support": 6000.0
+    },
+    "weighted avg": {
+      "precision": 0.9996668887408394,
+      "recall": 0.9996666666666667,
+      "f1-score": 0.9996666666296297,
+      "support": 6000.0
+    }
+  },
+  "feature_selection_note": "Top10 features were supplied preselected; whether selection used only an independent training split is unknown."
+}

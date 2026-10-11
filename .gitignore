@@ -9,3 +9,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+training/models/*.joblib
+training/models/*.pkl
+training/models/*.pickle
