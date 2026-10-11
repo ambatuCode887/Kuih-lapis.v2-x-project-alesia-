@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover - allows lightweight syntax/smoke checks
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_ROOT = Path(__file__).resolve().parent
-DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
 
 
 def project_env_path() -> Path | None:
@@ -36,9 +36,15 @@ def env(name: str, default: str | None = None) -> str | None:
     return os.getenv(name, default)
 
 
-def gemini_model() -> str:
-    configured_model = env("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
-    return configured_model.strip() if configured_model and configured_model.strip() else DEFAULT_GEMINI_MODEL
+def agent_model():
+    from google.adk.models.lite_llm import LiteLlm
+
+    model_name = (env("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL) or "").strip()
+    base_url = (env("OLLAMA_BASE_URL", "http://localhost:11434") or "").strip()
+    return LiteLlm(
+        model=f"ollama_chat/{model_name or DEFAULT_OLLAMA_MODEL}",
+        api_base=base_url or "http://localhost:11434",
+    )
 
 
 def required_env(name: str) -> str:

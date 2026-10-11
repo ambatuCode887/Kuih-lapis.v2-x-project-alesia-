@@ -4,14 +4,14 @@ from google.adk.agents.llm_agent import Agent
 from agents.tools.agents.file_classifier.agent import file_classifier_agent
 from agents.tools.agents.message_agents.agent import message_agent
 from agents.tools.agents.url_check.agent import url_check_agent
-from agents.config import gemini_model, load_environment
+from agents.config import agent_model, load_environment
 from agents.tools.functions.ingest.documents import ingest_file_to_qdrant
 from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
 
 load_environment()
 
 root_agent = Agent(
-    model=gemini_model(),
+    model=agent_model(),
     name="root_agent",
     description="Scam-awareness assistant with message analysis, file scoring, and Qdrant retrieval.",
     instruction=(

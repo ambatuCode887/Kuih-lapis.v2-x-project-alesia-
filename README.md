@@ -116,10 +116,11 @@ The project expects the following variables in `.env`:
 ```dotenv
 GOOGLE_GENAI_USE_ENTERPRISE=0
 GOOGLE_API_KEY=your_google_api_key_here
-GEMINI_MODEL=gemini-3.5-flash-lite
+OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_BASE_URL=http://localhost:11434
 
-EMBEDDING_PROVIDER=google
-EMBEDDING_MODEL=gemini-embedding-001
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=nomic-embed-text:latest
 EMBEDDING_DIM=768
 
 QDRANT_URL=http://localhost:6333
@@ -134,6 +135,9 @@ CONFLUENCE_PARENT_ID=
 ```
 
 A reusable skeleton is already provided in `.env.example`.
+Agent responses and knowledge embeddings use local Ollama models. All teammates
+must use the same embedding model for ingestion and retrieval against the shared
+Qdrant collection.
 
 ## 9. Common troubleshooting
 
@@ -145,9 +149,10 @@ Make sure you copied `.env.example` to `.env` and filled in the real values.
 
 Check that Docker Desktop is running and that the Qdrant container is started on port `6333`.
 
-### Embedding API errors
+### Embedding errors
 
-Verify that `GOOGLE_API_KEY` is valid and that `EMBEDDING_MODEL` matches a supported model.
+Verify that Ollama is running, `EMBEDDING_MODEL` is installed, and its vector
+dimension matches `EMBEDDING_DIM`.
 
 ### `adk web` fails to start
 
