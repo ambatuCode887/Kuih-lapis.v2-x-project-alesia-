@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from agents.tools.functions.embeddings import embed_text
-from agents.tools.functions.qdrant_store import ensure_collection, search
+from agents.tools.functions.qdrant_store import search
 
 
 def retrieve_knowledge(
@@ -12,7 +12,6 @@ def retrieve_knowledge(
     score_threshold: float | None = None,
 ) -> dict[str, Any]:
     """Retrieve relevant RAG chunks from Qdrant for a user query."""
-    ensure_collection()
     vector = embed_text(query)
     hits = search(vector=vector, limit=limit, score_threshold=score_threshold)
     results = []

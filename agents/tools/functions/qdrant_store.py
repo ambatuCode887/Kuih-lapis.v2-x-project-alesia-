@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 from agents.config import env, env_int
@@ -23,11 +24,16 @@ def settings() -> QdrantSettings:
     )
 
 
-def client():
+@lru_cache(maxsize=4)
+def _cached_client(url: str, api_key: str | None):
     from qdrant_client import QdrantClient
 
+    return QdrantClient(url=url, api_key=api_key)
+
+
+def client():
     cfg = settings()
-    return QdrantClient(url=cfg.url, api_key=cfg.api_key)
+    return _cached_client(cfg.url, cfg.api_key)
 
 
 def ensure_collection() -> str:
