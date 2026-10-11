@@ -10,6 +10,10 @@ from agents.agent import (
     route_request_to_agent,
     should_route_to_retrieval,
 )
+from agents.tools.agents.coordinator_agents.agent import (
+    parse_assessment,
+    select_follow_up_agent,
+)
 
 
 def test_cybersecurity_knowledge_questions_route_to_retrieval() -> None:
@@ -39,6 +43,38 @@ def test_root_router_has_final_response_model_and_dispatches_to_specialists() ->
         "url_check_agent",
         "file_classifier_agent",
         "retrieval_agent",
+        "coordinator_agent",
+    }
+
+
+def test_coordinator_routes_low_confidence_to_clarification() -> None:
+    assert select_follow_up_agent({"confidence": 50}) == "clarification_agent"
+    assert select_follow_up_agent({"confidence": 59}) == "clarification_agent"
+    assert select_follow_up_agent(
+        {"confidence": 50, "risk_level": "insufficient_information"}
+    ) == "clarification_agent"
+
+
+def test_coordinator_routes_sufficient_confidence_to_verification() -> None:
+    assert select_follow_up_agent({"confidence": 60}) == "verification_agent"
+    assert select_follow_up_agent({"confidence": 85}) == "verification_agent"
+
+
+def test_coordinator_fails_safe_to_clarification_for_missing_or_invalid_confidence() -> None:
+    assert select_follow_up_agent(None) == "clarification_agent"
+    assert select_follow_up_agent({}) == "clarification_agent"
+    assert select_follow_up_agent({"confidence": "50"}) == "clarification_agent"
+
+
+def test_assessment_parser_reads_json_fenced_by_specialist() -> None:
+    assessment = parse_assessment(
+        '```json\n{"risk_score": null, "risk_level": "insufficient_information", '
+        '"confidence": 50}\n```'
+    )
+    assert assessment == {
+        "risk_score": None,
+        "risk_level": "insufficient_information",
+        "confidence": 50,
     }
 
 

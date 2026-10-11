@@ -15,6 +15,11 @@ from agents.tools.agents.file_classifier.agent import file_classifier_agent
 from agents.tools.agents.message_agents.agent import message_agent
 from agents.tools.agents.url_check.agent import url_check_agent
 from agents.tools.agents.retrieval.agent import retrieval_agent
+from agents.tools.agents.coordinator_agents.agent import (
+    coordinator_agent,
+    parse_assessment,
+    select_follow_up_agent,
+)
 
 load_environment()
 
@@ -160,16 +165,40 @@ class RequestRouter(Agent):
         if target is None:
             raise RuntimeError(f"Configured route is missing agent: {target_name}")
 
-        final_report = ""
+        initial_report = ""
         async with Aclosing(target.run_async(ctx)) as events:
             async for event in events:
                 if event.is_final_response() and event.content:
-                    final_report = "\n".join(
+                    initial_report = "\n".join(
                         part.text
                         for part in event.content.parts or []
                         if getattr(part, "text", None)
                     )
                 yield event
+
+        final_report = initial_report
+        if target_name in {"message_agent", "url_check_agent"}:
+            assessment = parse_assessment(initial_report)
+            ctx.session.state["coordinator_assessment"] = assessment
+            coordinator = next(
+                agent for agent in self.sub_agents if agent.name == "coordinator_agent"
+            )
+            follow_up_name = select_follow_up_agent(assessment)
+            follow_up_report = ""
+            async with Aclosing(coordinator.run_async(ctx)) as events:
+                async for event in events:
+                    if event.is_final_response() and event.content:
+                        follow_up_report = "\n".join(
+                            part.text
+                            for part in event.content.parts or []
+                            if getattr(part, "text", None)
+                        )
+                    yield event
+            final_report = (
+                f"Assessment from {target_name}:\n{initial_report}\n\n"
+                f"{follow_up_name} result:\n{follow_up_report}"
+            )
+
         ctx.session.state["root_specialist_report"] = final_report
         async for event in super()._run_async_impl(ctx):
             yield event
@@ -189,6 +218,7 @@ root_agent = RequestRouter(
         url_check_agent(),
         file_classifier_agent(),
         retrieval_agent(),
+        coordinator_agent(),
     ],
     generate_content_config={"temperature": 0},
 )
