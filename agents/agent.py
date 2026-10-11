@@ -12,6 +12,10 @@ from google.adk.utils.context_utils import Aclosing
 
 from agents.config import agent_model, load_environment
 from agents.tools.agents.file_classifier.agent import file_classifier_agent
+from agents.tools.agents.message_agents.attachments import (
+    has_attachment,
+    redact_historical_attachments,
+)
 from agents.tools.agents.message_agents.agent import message_agent
 from agents.tools.agents.url_check.agent import url_check_agent
 from agents.tools.agents.retrieval.agent import retrieval_agent
@@ -95,8 +99,10 @@ def should_route_to_retrieval(request: str) -> bool:
     return any(term in normalized for term in _CYBER_KNOWLEDGE_TERMS)
 
 
-def route_request_to_agent(request: str) -> str:
+def route_request_to_agent(request: str, attachment_present: bool = False) -> str:
     """Choose a specialist directly, without an LLM orchestration layer."""
+    if attachment_present:
+                return "message_agent"
     normalized = request.casefold()
     if should_route_to_retrieval(request):
         return "retrieval_agent"
@@ -123,6 +129,11 @@ _ROOT_INSTRUCTION = (
 
 
 def _append_specialist_report(callback_context, llm_request: LlmRequest) -> None:
+    llm_request.config.tools = None
+    llm_request.tools_dict.clear()
+    llm_request.config.tool_config = types.ToolConfig(
+        function_calling_config=types.FunctionCallingConfig(mode="NONE")
+    )
     report = callback_context.state.get("root_specialist_report")
     if not report:
         report = "No specialist report was returned. Do not provide a factual answer."
@@ -133,6 +144,14 @@ def _append_specialist_report(callback_context, llm_request: LlmRequest) -> None
     )
     if user_message is None:
         return
+
+    for content in llm_request.contents:
+        if content.role == "user":
+            content.parts = [
+                part
+                for part in content.parts or []
+                if getattr(part, "text", None)
+            ]
 
     user_message.parts = [
         *(user_message.parts or []),
@@ -145,19 +164,73 @@ def _append_specialist_report(callback_context, llm_request: LlmRequest) -> None
     ]
 
 
+def _normalize_followup_question(question: str) -> str:
+    return " ".join(re.findall(r"\w+", question.casefold()))
+
+
+def _cached_followup_response(request: str, followups: list[dict]) -> str | None:
+    normalized_request = _normalize_followup_question(request)
+    if not normalized_request:
+        return None
+    for followup in followups:
+        if _normalize_followup_question(followup.get("question", "")) != normalized_request:
+            continue
+        response = followup.get("answer", "").strip()
+        citation = followup.get("source", "").strip()
+        chunk_index = followup.get("chunk_index", "").strip()
+        if citation:
+            response += f"\n\nSource: {citation}"
+            if chunk_index:
+                response += f", chunk {chunk_index}"
+            response += "."
+        return response or None
+    return None
+
+
+def _followup_suggestions(followups: list[dict]) -> str:
+    questions = [item.get("question", "").strip() for item in followups]
+    questions = [question for question in questions if question]
+    if not questions:
+        return ""
+    return (
+        "\n\nRelated questions (send one exactly for an instant cached answer):\n"
+        + "\n".join(f"- {question}" for question in questions)
+    )
+
+
 class RequestRouter(Agent):
     """Route to a specialist first, then let the root author the final answer."""
 
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
+        redact_historical_attachments(ctx.session, ctx.invocation_id)
         content = ctx.user_content
         request = " ".join(
             part.text
             for part in (content.parts if content else [])
             if getattr(part, "text", None)
         )
-        target_name = route_request_to_agent(request)
+        cached_response = _cached_followup_response(
+            request,
+            ctx.session.state.get("cached_followups", []),
+        )
+        if cached_response:
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text=cached_response)],
+                ),
+                turn_complete=True,
+            )
+            return
+
+        target_name = route_request_to_agent(
+            request,
+            attachment_present=has_attachment(content),
+        )
         target = next(
             (agent for agent in self.sub_agents if agent.name == target_name),
             None,
@@ -201,6 +274,19 @@ class RequestRouter(Agent):
 
         ctx.session.state["root_specialist_report"] = final_report
         async for event in super()._run_async_impl(ctx):
+            if (
+                target_name == "retrieval_agent"
+                and event.is_final_response()
+                and event.content
+            ):
+                suggestions = _followup_suggestions(
+                    ctx.session.state.get("cached_followups", [])
+                )
+                if suggestions:
+                    event.content.parts = [
+                        *(event.content.parts or []),
+                        types.Part(text=suggestions),
+                    ]
             yield event
 
 

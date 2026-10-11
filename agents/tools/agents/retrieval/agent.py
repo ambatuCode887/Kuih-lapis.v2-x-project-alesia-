@@ -1,43 +1,100 @@
-from pathlib import Path
+import asyncio
+import re
 
 from google.genai import types
-from google.adk.agents.llm_agent import Agent
+from google.adk.agents.base_agent import BaseAgent
+from google.adk.agents.invocation_context import InvocationContext
+from google.adk.events.event import Event
+from google.adk.events.event_actions import EventActions
 
-from agents.config import agent_model
 from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
 
-_PROMPT = Path(__file__).with_name("prompt.md")
+_QA_RECORD = re.compile(
+    r"\s*Question:\s*(?P<question>.*?)\s*\nAnswer:\s*(?P<answer>.*?)\s*\Z",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
-def _reset_retrieval_state(callback_context) -> None:
-    callback_context.state["retrieval_tool_called"] = False
-
-
-def _require_retrieval_tool(callback_context, llm_request) -> None:
-    called = callback_context.state.get("retrieval_tool_called", False)
-    llm_request.config.tool_config = types.ToolConfig(
-        function_calling_config=types.FunctionCallingConfig(
-            mode="AUTO" if called else "ANY",
-            allowed_function_names=None if called else ["retrieve_knowledge"],
+def _cached_followups(results: list[dict], query: str) -> list[dict[str, str]]:
+    normalized_query = " ".join(query.casefold().split())
+    followups = []
+    seen_questions = {normalized_query}
+    for result in results:
+        match = _QA_RECORD.fullmatch(str(result.get("text", "")))
+        if not match:
+            continue
+        question = match.group("question").strip()
+        answer = match.group("answer").strip()
+        normalized_question = " ".join(question.casefold().split())
+        if not question or not answer or normalized_question in seen_questions:
+            continue
+        seen_questions.add(normalized_question)
+        followups.append(
+            {
+                "question": question,
+                "answer": answer,
+                "source": str(result.get("source", "")),
+                "chunk_index": str(result.get("chunk_index", "")),
+            }
         )
-    )
+        if len(followups) == 3:
+            break
+    return followups
 
 
-def _mark_retrieval_tool_called(tool, args, tool_context, tool_response) -> None:
-    if getattr(tool, "name", None) == "retrieve_knowledge":
-        tool_context.state["retrieval_tool_called"] = True
+class RetrievalAgent(BaseAgent):
+    async def _run_async_impl(self, ctx: InvocationContext):
+        content = ctx.user_content
+        query = "\n".join(
+            part.text
+            for part in (content.parts if content else [])
+            if getattr(part, "text", None)
+        ).strip()
+
+        followups = []
+        if not query:
+            report = "No query text was provided, so no knowledge search was run."
+        else:
+            retrieval = await asyncio.to_thread(retrieve_knowledge, query)
+            results = retrieval.get("results", [])
+            followups = _cached_followups(results, query)
+            if not results:
+                report = "No relevant context was found in the knowledge base."
+            else:
+                passages = []
+                for index, result in enumerate(results, start=1):
+                    score = result.get("score")
+                    score_text = (
+                        f"{score:.3f}"
+                        if isinstance(score, (int, float))
+                        else "unknown"
+                    )
+                    metadata = result.get("metadata") or {}
+                    category = metadata.get("category")
+                    category_text = f"; category={category}" if category else ""
+                    passages.append(
+                        f"[{index}] source={result.get('source', '')}; "
+                        f"chunk_index={result.get('chunk_index')}; "
+                        f"score={score_text}{category_text}\n"
+                        f"{result.get('text', '')}"
+                    )
+                report = "Retrieved evidence:\n" + "\n\n".join(passages)
+
+        yield Event(
+            author=self.name,
+            invocation_id=ctx.invocation_id,
+            content=types.Content(
+                role="model",
+                parts=[types.Part(text=report)],
+            ),
+            actions=EventActions(state_delta={"cached_followups": followups}),
+            turn_complete=True,
+        )
 
 
-def retrieval_agent() -> Agent:
+def retrieval_agent() -> BaseAgent:
     """Factory function to create a retrieval agent."""
-    return Agent(
-        model=agent_model(),
+    return RetrievalAgent(
         name="retrieval_agent",
         description="Answers cybersecurity knowledge questions using Qdrant evidence.",
-        instruction=_PROMPT.read_text(encoding="utf-8"),
-        tools=[retrieve_knowledge],
-        mode="single_turn",
-        before_agent_callback=_reset_retrieval_state,
-        before_model_callback=_require_retrieval_tool,
-        after_tool_callback=_mark_retrieval_tool_called,
     )

@@ -103,6 +103,13 @@ This writes a report to `.artifacts/retrieval-report.json`.
 
 Then open the local URL shown in the terminal (typically `http://127.0.0.1:8000`).
 
+### PDF and image attachments
+
+Attachment analysis extracts text from PDFs and uses local Tesseract OCR for
+screenshots and scanned PDF pages. Install Tesseract OCR and ensure `tesseract`
+is available on `PATH`; set `TESSERACT_CMD` if its executable is elsewhere.
+Uploads are limited to 20 MB and PDF processing to the first 20 pages.
+
 ## 7. Optional: publish to Confluence
 
 Publishing uses the Confluence REST API with `CONFLUENCE_BASE_URL`, `CONFLUENCE_EMAIL`, and `CONFLUENCE_API_TOKEN`.

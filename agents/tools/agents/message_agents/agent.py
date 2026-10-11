@@ -3,6 +3,7 @@ from pathlib import Path
 from google.adk.agents.llm_agent import Agent
 
 from agents.config import agent_model
+from agents.tools.agents.message_agents.attachments import prepare_message_attachments
 
 
 _PROMPT = Path(__file__).parent / "prompt.md"
@@ -19,4 +20,5 @@ def message_agent() -> Agent:
 		),
 		instruction=_PROMPT.read_text(encoding="utf-8"),
 		mode="single_turn",
+		before_model_callback=prepare_message_attachments,
 	)
