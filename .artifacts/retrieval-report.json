@@ -11,7 +11,7 @@
         "passwords"
       ],
       "keyword_recall": 1.0,
-      "retrieved_count": 2
+      "retrieved_count": 5
     },
     {
       "id": "case-2",
@@ -22,7 +22,7 @@
         "breached-password detection"
       ],
       "keyword_recall": 1.0,
-      "retrieved_count": 2
+      "retrieved_count": 5
     }
   ]
 }

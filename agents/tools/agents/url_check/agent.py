@@ -4,7 +4,7 @@ from google.adk.agents.llm_agent import Agent
 from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnectionParams
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 
-from agents.config import required_env
+from agents.config import agent_model, required_env
 from agents.tools.agents.coordinator_agents.agent import coordinator_agent
 
 PROMPT_PATH = Path(__file__).with_name("prompt.md")
@@ -30,7 +30,7 @@ def virustotal_toolset() -> McpToolset:
 def url_check_agent() -> Agent:
     """Factory function to create the URL/domain reputation agent."""
     return Agent(
-        model="gemini-3.5-flash",
+        model=agent_model(),
         name="url_check_agent",
         description=(
             "Checks domain, URL and IP reputation using VirusTotal threat "

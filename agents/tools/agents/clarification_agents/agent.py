@@ -2,7 +2,7 @@ from pathlib import Path
 
 from google.adk.agents.llm_agent import Agent
 
-from agents.config import gemini_model
+from agents.config import agent_model
 
 _PROMPT = Path(__file__).parent / "prompt.md"
 
@@ -10,7 +10,7 @@ _PROMPT = Path(__file__).parent / "prompt.md"
 def clarification_agent() -> Agent:
 	"""Create the sub-agent for generating focused scam-analysis questions."""
 	return Agent(
-		model=gemini_model(),
+		model=agent_model(),
 		name="clarification_agent",
 		description=(
 			"Suggests one or two privacy-conscious follow-up questions when "

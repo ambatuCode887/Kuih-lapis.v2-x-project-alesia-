@@ -12,7 +12,7 @@ from typing import Any
 
 
 from agents.tools.functions.embeddings import embed_texts
-from agents.tools.functions.qdrant_store import ensure_collection, upsert_points
+from agents.tools.functions.qdrant_store import client, ensure_collection, settings, upsert_points
 
 
 TEXT_SUFFIXES = {
@@ -105,6 +105,37 @@ def _structure_units(text: str, suffix: str = "") -> list[str]:
     return units
 
 
+def _qa_csv_records(text: str) -> list[dict[str, str]] | None:
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return None
+
+    fields = {field.strip().casefold(): field for field in reader.fieldnames if field}
+    question_field = fields.get("question")
+    answer_field = fields.get("answer")
+    if question_field is None or answer_field is None:
+        return None
+
+    category_field = fields.get("category")
+    difficulty_field = fields.get("difficulty")
+    records = []
+    for row in reader:
+        question = (row.get(question_field) or "").strip()
+        answer = (row.get(answer_field) or "").strip()
+        if not question or not answer:
+            continue
+
+        record = {
+            "question": question,
+            "answer": answer,
+            "category": (row.get(category_field) or "").strip() if category_field else "",
+            "difficulty": (row.get(difficulty_field) or "").strip() if difficulty_field else "",
+        }
+        record["text"] = f"Question: {question}\nAnswer: {answer}"
+        records.append(record)
+    return records
+
+
 def _cosine_similarity(first: list[float], second: list[float]) -> float:
     dot = sum(left * right for left, right in zip(first, second))
     norm_first = math.sqrt(sum(value * value for value in first))
@@ -193,6 +224,76 @@ def ingest_texts(
     return upsert_points(points)
 
 
+def _ingest_qa_csv_records(
+    document_path: Path,
+    source: str,
+    records: list[dict[str, str]],
+) -> dict[str, Any]:
+    from qdrant_client.models import PointStruct
+
+    ensure_collection()
+    vectors = embed_texts([record["text"] for record in records])
+    points = [
+        PointStruct(
+            id=_point_id(source, index, record["text"]),
+            vector=vector,
+            payload={
+                **record,
+                "source": source,
+                "chunk_index": index,
+                "file_name": document_path.name,
+                "file_path": str(document_path),
+            },
+        )
+        for index, (record, vector) in enumerate(zip(records, vectors, strict=True))
+    ]
+
+    qdrant = client()
+    cfg = settings()
+    existing_ids = []
+    offset = None
+    while True:
+        existing_points, offset = qdrant.scroll(
+            collection_name=cfg.collection,
+            limit=256,
+            offset=offset,
+            with_payload=["source", "file_name", "file_path"],
+            with_vectors=False,
+        )
+        existing_ids.extend(
+            point.id
+            for point in existing_points
+            if (point.payload or {}).get("source") == source
+            and (point.payload or {}).get("file_path") == str(document_path)
+        )
+        if offset is None:
+            break
+
+    for start in range(0, len(points), 64):
+        qdrant.upsert(
+            collection_name=cfg.collection,
+            points=points[start : start + 64],
+            wait=True,
+        )
+
+    new_ids = {str(point.id) for point in points}
+    stale_ids = [point_id for point_id in existing_ids if str(point_id) not in new_ids]
+    if stale_ids:
+        qdrant.delete(
+            collection_name=cfg.collection,
+            points_selector=stale_ids,
+            wait=True,
+        )
+
+    return {
+        "collection": cfg.collection,
+        "source": source,
+        "rows": len(records),
+        "upserted": len(points),
+        "replaced": len(stale_ids),
+    }
+
+
 def ingest_file_to_qdrant(
     path: str,
     source: str | None = None,
@@ -203,6 +304,17 @@ def ingest_file_to_qdrant(
     """Load a local file, chunk it, embed chunks, and store them in Qdrant."""
     document_path = Path(path).expanduser().resolve()
     text = _read_text_file(document_path)
+    if document_path.suffix.lower() == ".csv":
+        qa_records = _qa_csv_records(text)
+        if qa_records is not None:
+            if not qa_records:
+                return {"source": str(document_path), "upserted": 0, "message": "No complete Q&A rows found."}
+            return _ingest_qa_csv_records(
+                document_path,
+                source or str(document_path),
+                qa_records,
+            )
+
     chunks = (
         hybrid_chunk_text(
             text,
