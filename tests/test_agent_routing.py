@@ -1,5 +1,7 @@
 import asyncio
+import csv
 import io
+from pathlib import Path
 from types import SimpleNamespace
 
 from google.adk.agents.base_agent import BaseAgent
@@ -60,6 +62,32 @@ def test_root_router_has_final_response_model_and_dispatches_to_specialists() ->
         "retrieval_agent",
         "coordinator_agent",
     }
+
+
+def test_routing_eval_dataset() -> None:
+    dataset_path = (
+        Path(__file__).resolve().parents[1]
+        / "agents"
+        / "eval"
+        / "routing_cases.csv"
+    )
+    with dataset_path.open(newline="", encoding="utf-8") as handle:
+        cases = list(csv.DictReader(handle))
+
+    mismatches = []
+    for case in cases:
+        actual_route = route_request_to_agent(
+            case["request"],
+            attachment_present=case["has_attachment"].casefold() == "true",
+        )
+        if actual_route != case["expected_route"]:
+            mismatches.append(
+                f'{case["id"]}: expected {case["expected_route"]}, '
+                f"got {actual_route} for {case['request']!r}"
+            )
+
+    assert len(cases) >= 40, "Routing evaluation set needs broader coverage."
+    assert not mismatches, "\n".join(mismatches)
 
 
 def test_coordinator_routes_low_confidence_to_clarification() -> None:

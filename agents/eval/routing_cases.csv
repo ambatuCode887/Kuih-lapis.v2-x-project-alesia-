@@ -1,0 +1,63 @@
+id,request,has_attachment,expected_route
+retrieval-001,How do I protect myself from cyber malicious attacks?,false,retrieval_agent
+retrieval-002,How can I stay safe online?,false,retrieval_agent
+retrieval-003,What is credential stuffing?,false,retrieval_agent
+retrieval-004,Explain how ransomware spreads and how to prevent it.,false,retrieval_agent
+retrieval-005,How can I prevent phishing attacks?,false,retrieval_agent
+retrieval-006,What should a small business do to improve network security?,false,retrieval_agent
+retrieval-007,How do I secure my public Wi-Fi connection?,false,retrieval_agent
+retrieval-008,What does multi-factor authentication protect against?,false,retrieval_agent
+retrieval-009,How can I avoid identity theft online?,false,retrieval_agent
+retrieval-010,What should I do after a data breach?,false,retrieval_agent
+retrieval-011,What is the safest way to browse the internet?,false,retrieval_agent
+retrieval-012,How do I keep my online accounts secure?,false,retrieval_agent
+retrieval-013,What should I do after my account was hacked?,false,retrieval_agent
+retrieval-014,How do I lock down my home router?,false,retrieval_agent
+retrieval-015,How can I stop someone taking over my account?,false,retrieval_agent
+retrieval-016,I clicked on a suspicious link. What should I do now?,false,retrieval_agent
+retrieval-017,Can you explain two-factor authentication in simple terms?,false,retrieval_agent
+retrieval-018,Why should I use a VPN on public Wi-Fi?,false,retrieval_agent
+retrieval-019,Is it dangerous to reuse the same password?,false,retrieval_agent
+retrieval-020,How can I make my work laptop safer?,false,retrieval_agent
+retrieval-021,Give me practical tips for protecting my phone from malware.,false,retrieval_agent
+manual-001,"My home Wi-Fi feels insecure. What should I change?",false,retrieval_agent
+manual-002,"I reused a password and now can’t log in. What should I do?",false,retrieval_agent
+manual-003,"What should I do after clicking a suspicious link?",false,retrieval_agent
+message-001,Is this text a scam?,false,message_agent
+message-002,Does this email look suspicious?,false,message_agent
+message-003,Someone sent me a message asking for my password. Is it safe?,false,message_agent
+message-004,I received a job offer asking me to pay a fee.,false,message_agent
+message-005,Analyze this WhatsApp message for scam signs.,false,message_agent
+message-006,Could this be a phishing attempt?,false,message_agent
+message-007,Is this text trying to steal my login details?,false,message_agent
+message-008,Review this message from my bank.,false,message_agent
+message-009,Check this suspicious SMS.,false,message_agent
+message-010,I got a message asking me to share an OTP.,false,message_agent
+message-011,A caller claiming to be from my bank wants my OTP. Is that legitimate?,false,message_agent
+message-012,"This message asks me to pay with gift cards. Is it a scam, and how do I avoid this next time?",false,message_agent
+message-013,Can you tell whether this bank SMS is real or fake?,false,message_agent
+message-014,Someone sent me a prize link and says I need to sign in. Should I trust it?,false,message_agent
+message-015,Please assess this email asking me to update my payment details.,false,message_agent
+url-001,Check this link: https://example.com/login,false,url_check_agent
+url-002,Is https://example.com/pay a phishing URL?,false,url_check_agent
+url-003,Analyze this URL: https://example.com/account,false,url_check_agent
+url-004,Check this domain: example.com,false,url_check_agent
+url-005,Look up this domain: example.com,false,url_check_agent
+url-006,Can you check the IP reputation for 203.0.113.10?,false,url_check_agent
+url-007,Is this IP malicious: 203.0.113.10?,false,url_check_agent
+url-008,Scan this link: www.example.com,false,url_check_agent
+url-009,Check the reputation of this domain: example.com,false,url_check_agent
+url-010,What is the reputation of this URL: https://example.com/,false,url_check_agent
+classifier-001,Classify this precomputed feature vector.,false,file_classifier_agent
+classifier-002,Score this pre-extracted feature vector for a PDF.,false,file_classifier_agent
+classifier-003,Use the complete numeric feature vector for the HTML classifier.,false,file_classifier_agent
+classifier-004,Run the file classifier on these precomputed features.,false,file_classifier_agent
+classifier-005,I have a precomputed feature vector to classify.,false,file_classifier_agent
+classifier-006,Classify these pre-extracted features for an Excel file.,false,file_classifier_agent
+classifier-007,Score this complete feature vector with the Word model.,false,file_classifier_agent
+classifier-008,Can you classify a numeric feature vector?,false,file_classifier_agent
+classifier-009,Use the precomputed features to classify this file.,false,file_classifier_agent
+classifier-010,Here is a precomputed feature vector for classification.,false,file_classifier_agent
+attachment-001,Is this screenshot a scam?,true,message_agent
+attachment-002,Please inspect this PDF attachment for phishing indicators.,true,message_agent
+attachment-003,Can you read this screenshot and tell me whether the message is suspicious?,true,message_agent

@@ -30,6 +30,24 @@ load_environment()
 _CYBER_KNOWLEDGE_TERMS = (
     "cybersecurity",
     "cyber security",
+    "cyber attack",
+    "cyber malicious attack",
+    "stay safe online",
+    "online safety",
+    "protect myself online",
+    "safe browsing",
+    "browse the internet",
+    "online account",
+    "hacked",
+    "home router",
+    "home network",
+    "home wi-fi",
+    "home wifi",
+    "account takeover",
+    "taking over my account",
+    "clicked on a suspicious link",
+    "clicking a suspicious link",
+    "after clicking a suspicious link",
     "malware",
     "virus",
     "ransomware",
@@ -43,6 +61,8 @@ _CYBER_KNOWLEDGE_TERMS = (
     "encryption",
     "vpn",
     "multi-factor",
+    "two-factor",
+    "two factor",
     "mfa",
     "data breach",
     "network security",
@@ -53,6 +73,7 @@ _CYBER_KNOWLEDGE_TERMS = (
     "social engineering",
     "hacking",
     "security risk",
+    "work laptop",
 )
 _ANALYSIS_CUES = (
     "analyze this",
@@ -69,6 +90,13 @@ _ANALYSIS_CUES = (
     "this message",
     "this link",
     "this file",
+    "is this a scam",
+    "is this text a scam",
+    "is this phishing",
+    "could this be a scam",
+    "could this be a phishing",
+    "does this look suspicious",
+    "does this look like a scam",
 )
 _URL_ANALYSIS_CUES = (
     "check this domain",
@@ -80,6 +108,8 @@ _URL_ANALYSIS_CUES = (
     "ip reputation",
     "scan this link",
     "look up this domain",
+    "check the reputation",
+    "reputation of this domain",
 )
 _FEATURE_VECTOR_CUES = (
     "feature vector",
@@ -87,12 +117,17 @@ _FEATURE_VECTOR_CUES = (
     "pre-extracted features",
 )
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+_IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
 
 def should_route_to_retrieval(request: str) -> bool:
     """Return whether a request is a cybersecurity knowledge question."""
     normalized = request.casefold()
-    if not normalized.strip() or _URL_PATTERN.search(normalized):
+    if (
+        not normalized.strip()
+        or _URL_PATTERN.search(normalized)
+        or _IP_PATTERN.search(normalized)
+    ):
         return False
     if any(cue in normalized for cue in _ANALYSIS_CUES):
         return False
@@ -106,7 +141,7 @@ def route_request_to_agent(request: str, attachment_present: bool = False) -> st
     normalized = request.casefold()
     if should_route_to_retrieval(request):
         return "retrieval_agent"
-    if _URL_PATTERN.search(normalized) or any(
+    if _URL_PATTERN.search(normalized) or _IP_PATTERN.search(normalized) or any(
         cue in normalized for cue in _URL_ANALYSIS_CUES
     ):
         return "url_check_agent"

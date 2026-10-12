@@ -23,7 +23,14 @@ def main() -> int:
 	parser.add_argument("--seed", type=int, default=42, help="Seed for repeatable sampling")
 	parser.add_argument("--top-k", type=int, default=5, help="Retrieved contexts per question")
 	parser.add_argument("--keyword-only", action="store_true", help="Run the lightweight keyword-recall baseline")
+	parser.add_argument(
+		"--grounding-only",
+		action="store_true",
+		help="Generate answers and audit their citations without running RAGAS judge metrics",
+	)
 	args = parser.parse_args()
+	if args.keyword_only and args.grounding_only:
+		parser.error("--keyword-only and --grounding-only cannot be used together")
 
 	if args.keyword_only:
 		cases = load_cases(args.dataset or default_dataset_path())
@@ -60,8 +67,10 @@ def main() -> int:
 					{
 						"role": "system",
 						"content": (
-							"Answer the user's question using only the retrieved context. "
-							"If the context does not contain the answer, say so plainly."
+							"Answer using only the retrieved context. Cite factual claims using "
+							"the exact source token shown before each passage, such as "
+							"[data.md#2]. Never invent a citation. If retrieved context does "
+							"not support an answer, say that the knowledge base did not provide one."
 						),
 					},
 					{
@@ -81,14 +90,20 @@ def main() -> int:
 			llm,
 			embeddings,
 			limit=args.top_k,
+			grounding_only=args.grounding_only,
 		)
 		report["dataset"] = str(Path(args.dataset or default_ragas_dataset_path()).resolve())
 		report["sample_seed"] = args.seed
 		report["sample_limit"] = args.limit or "all"
-		report["judge_model"] = model
+		report["answer_model"] = model
+		if not args.grounding_only:
+			report["judge_model"] = model
 		report["embedding_model"] = embedding_model
 		report["evaluation_note"] = (
-			"This in-sample check uses questions from the indexed knowledge CSV; "
+			"This evaluation uses a caller-supplied dataset. Treat it as held out only "
+			"if its questions were not used to build or tune the indexed corpus."
+			if args.dataset
+			else "This in-sample check uses questions from the indexed knowledge CSV; "
 			"use a separate held-out Q&A file to estimate generalization."
 		)
 		default_output = ".artifacts/ragas-report.json"

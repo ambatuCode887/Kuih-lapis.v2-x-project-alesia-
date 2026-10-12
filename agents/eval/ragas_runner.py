@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from agents.eval.dataset import EvaluationCase
@@ -19,6 +21,36 @@ class _RagasEmbeddingAdapter:
 
 	def embed_documents(self, texts: list[str]) -> list[list[float]]:
 		return self.embeddings.embed_texts(texts)
+
+
+def _format_retrieved_context(item: dict[str, Any]) -> tuple[str, str | None]:
+	text = str(item.get("text", ""))
+	source = str(item.get("source", ""))
+	chunk_index = item.get("chunk_index")
+	if not source or chunk_index is None:
+		return text, None
+	citation = f"[{Path(source).name}#{chunk_index}]"
+	return f"{citation}\n{text}", citation
+
+
+def _source_grounding_result(
+	response: str,
+	retrieved_citations: list[str],
+) -> dict[str, Any]:
+	answer_citations = [
+		f"[{citation}]"
+		for citation in re.findall(r"\[([^\]]+#[^\]]+)\]", response)
+	]
+	valid_citations = sorted(set(answer_citations) & set(retrieved_citations))
+	invalid_citations = sorted(set(answer_citations) - set(retrieved_citations))
+	return {
+		"retrieved_source_citations": retrieved_citations,
+		"answer_source_citations": sorted(set(answer_citations)),
+		"valid_retrieved_citations": valid_citations,
+		"invalid_or_unretrieved_citations": invalid_citations,
+		"has_valid_source_citation": bool(valid_citations),
+		"all_answer_citations_retrieved": bool(answer_citations) and not invalid_citations,
+	}
 
 
 def evaluate_retrieval(
@@ -54,6 +86,7 @@ def evaluate_ragas(
 	llm: Any,
 	embeddings: Any,
 	limit: int = 5,
+	grounding_only: bool = False,
 ) -> dict[str, Any]:
 	"""Score generated answers against retrieved context and reference answers."""
 	from datasets import Dataset
@@ -71,13 +104,34 @@ def evaluate_ragas(
 		raise ValueError("At least one evaluation case is required.")
 
 	samples = []
+	case_metadata = []
 	for case in cases:
 		retrieved = retrieve(case.question, limit=limit)
-		contexts = [
-			item.get("text", "")
-			for item in retrieved.get("results", [])
-			if item.get("text")
-		]
+		contexts = []
+		retrieved_sources = []
+		retrieved_citations = []
+		for item in retrieved.get("results", []):
+			if not item.get("text"):
+				continue
+			context, citation = _format_retrieved_context(item)
+			contexts.append(context)
+			retrieved_sources.append(
+				{
+					"source": item.get("source", ""),
+					"chunk_index": item.get("chunk_index"),
+					"score": item.get("score"),
+				}
+			)
+			if citation:
+				retrieved_citations.append(citation)
+		case_metadata.append(
+			{
+				"case_id": case.case_id,
+				"question": case.question,
+				"reference_answer": case.reference_answer,
+				"retrieved_sources": retrieved_sources,
+			}
+		)
 		samples.append(
 			{
 				"user_input": case.question,
@@ -86,14 +140,60 @@ def evaluate_ragas(
 				"reference": case.reference_answer,
 			}
 		)
+	if grounding_only:
+		case_results = []
+		for metadata, sample in zip(case_metadata, samples):
+			retrieved_citations = [
+				citation
+				for context in sample["retrieved_contexts"]
+				for citation in re.findall(r"^(\[[^\]]+#[^\]]+\])", context)
+			]
+			case_results.append(
+				{
+					**metadata,
+					"response": sample["response"],
+					**_source_grounding_result(
+						sample["response"], retrieved_citations
+					),
+				}
+			)
+		citation_cases = [
+			case for case in case_results if case["answer_source_citations"]
+		]
+		return {
+			"evaluation": "source_citation_audit",
+			"case_count": len(case_results),
+			"metrics": {},
+			"source_grounding": {
+				"semantic_faithfulness_evaluated": False,
+				"cases_with_retrieved_citations": sum(
+					bool(case["retrieved_source_citations"]) for case in case_results
+				),
+				"cases_with_answer_citations": len(citation_cases),
+				"all_citations_retrieved_rate": (
+					sum(case["all_answer_citations_retrieved"] for case in citation_cases)
+					/ len(citation_cases)
+					if citation_cases
+					else None
+				),
+				"cases_with_unretrieved_citations": sum(
+					bool(case["invalid_or_unretrieved_citations"])
+					for case in case_results
+				),
+			},
+			"cases": case_results,
+		}
 
-	metrics = [
-		Faithfulness(llm=llm),
-		AnswerRelevancy(llm=llm, embeddings=_RagasEmbeddingAdapter(embeddings)),
-		ContextRecall(llm=llm),
-		ContextPrecision(llm=llm),
-		AnswerCorrectness(llm=llm, embeddings=_RagasEmbeddingAdapter(embeddings)),
-	]
+	metrics = [Faithfulness(llm=llm)]
+	if not grounding_only:
+		metrics.extend(
+			[
+				AnswerRelevancy(llm=llm, embeddings=_RagasEmbeddingAdapter(embeddings)),
+				ContextRecall(llm=llm),
+				ContextPrecision(llm=llm),
+				AnswerCorrectness(llm=llm, embeddings=_RagasEmbeddingAdapter(embeddings)),
+			]
+		)
 	result = evaluate(
 		dataset=Dataset.from_list(samples),
 		metrics=metrics,
@@ -110,9 +210,38 @@ def evaluate_ragas(
 		for name in metric_names
 		if name in scores and not scores[name].dropna().empty
 	}
+	case_results = json.loads(scores.to_json(orient="records", force_ascii=False))
+	for case_result, metadata, sample in zip(case_results, case_metadata, samples):
+		case_result.update(metadata)
+		case_result.update(
+			_source_grounding_result(
+				sample["response"],
+				[
+					citation
+					for context in sample["retrieved_contexts"]
+					for citation in re.findall(r"^(\[[^\]]+#[^\]]+\])", context)
+				],
+			)
+		)
+	citation_cases = [
+		case for case in case_results if case["retrieved_source_citations"]
+	]
 	return {
 		"evaluation": "RAGAS",
+		"evaluation_mode": "source_grounding" if grounding_only else "full_ragas",
 		"case_count": len(samples),
 		"metrics": averages,
-		"cases": json.loads(scores.to_json(orient="records", force_ascii=False)),
+		"source_grounding": {
+			"cases_with_retrieved_citations": len(citation_cases),
+			"valid_citation_rate": (
+				sum(case["all_answer_citations_retrieved"] for case in citation_cases)
+				/ len(citation_cases)
+				if citation_cases
+				else None
+			),
+			"cases_with_unretrieved_citations": sum(
+				bool(case["invalid_or_unretrieved_citations"]) for case in case_results
+			),
+		},
+		"cases": case_results,
 	}
