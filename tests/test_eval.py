@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from agents.eval.dataset import EvaluationCase, load_cases, load_ragas_cases
-from agents.eval.ragas_runner import evaluate_retrieval
+from agents.eval.ragas_runner import (
+    _source_grounding_result,
+    evaluate_retrieval,
+)
 
 
 def test_load_cases(tmp_path) -> None:
@@ -36,3 +39,34 @@ def test_evaluate_retrieval_reports_keyword_recall() -> None:
         lambda question, limit=5: {"results": [{"text": "Alpha is present."}]},
     )
     assert report["average_keyword_recall"] == 0.5
+
+
+def test_source_grounding_requires_a_retrieved_citation() -> None:
+    valid = _source_grounding_result(
+        "Use MFA [data.md#1]", ["[data.md#1]"]
+    )
+    invalid = _source_grounding_result(
+        "Use MFA [other.md#1]", ["[data.md#1]"]
+    )
+
+    assert valid["has_valid_source_citation"] is True
+    assert valid["invalid_or_unretrieved_citations"] == []
+    assert invalid["has_valid_source_citation"] is False
+    assert invalid["invalid_or_unretrieved_citations"] == ["[other.md#1]"]
+
+
+def test_heldout_questions_are_separate_from_indexed_and_development_questions() -> None:
+    from pathlib import Path
+
+    from agents.eval.dataset import default_ragas_dataset_path, load_ragas_cases
+
+    eval_dir = Path(__file__).resolve().parents[1] / "agents" / "eval"
+    heldout_path = eval_dir / "heldout_cybersecurity.csv"
+    heldout = load_ragas_cases(heldout_path)
+    indexed = load_ragas_cases(default_ragas_dataset_path())
+    dev = load_ragas_cases(eval_dir / "retrieval_dev_cybersecurity.csv")
+    other_questions = {case.question.strip().casefold() for case in [*indexed, *dev]}
+
+    assert len(heldout) == 8
+    assert all(case.expected_keywords for case in load_cases(heldout_path))
+    assert all(case.question.strip().casefold() not in other_questions for case in heldout)
