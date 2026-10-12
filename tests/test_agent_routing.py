@@ -36,6 +36,23 @@ def test_cybersecurity_knowledge_questions_route_to_retrieval() -> None:
 def test_artifact_analysis_requests_bypass_knowledge_route() -> None:
     assert not should_route_to_retrieval("Is this email a phishing attempt?")
     assert not should_route_to_retrieval("Check this link: https://example.com/login")
+    assert route_request_to_agent("Example link, is this a malicious link?") == "url_check_agent"
+
+
+def test_root_generates_retrieval_followups_without_qdrant_question_records() -> None:
+    assert "model-generated follow-up questions" in _ROOT_INSTRUCTION
+    assert "do not copy questions from retrieved Qdrant records" in _ROOT_INSTRUCTION
+    assert "When no relevant evidence was returned, ask useful questions" in _ROOT_INSTRUCTION
+
+
+def test_root_includes_malaysia_scam_reporting_resources() -> None:
+    assert "Malaysian NSRC hotline (dial 997)" in _ROOT_INSTRUCTION
+    assert "https://nfcc.jpm.gov.my/index.php/en/" in _ROOT_INSTRUCTION
+
+
+def test_root_includes_mule_account_lookup_guidance() -> None:
+    assert "When the user asks about or mentions mule accounts" in _ROOT_INSTRUCTION
+    assert "https://semakmule.rmp.gov.my/" in _ROOT_INSTRUCTION
 
 
 def test_root_routes_directly_to_specialist_agents() -> None:
@@ -234,6 +251,15 @@ def test_followup_answers_are_served_from_cache_with_citation() -> None:
     )
 
 
+def test_followup_suggestions_use_only_cached_questions() -> None:
+    suggestions = _followup_suggestions(
+        [{"question": "What is MFA?", "answer": "A second factor."}]
+    )
+
+    assert "What is MFA?" in suggestions
+    assert "instant cached answer" in suggestions
+
+
 def test_root_answers_cached_followup_without_running_specialists() -> None:
     context = SimpleNamespace(
         user_content=types.Content(
@@ -265,15 +291,6 @@ def test_root_answers_cached_followup_without_running_specialists() -> None:
     assert events[0].is_final_response()
     assert "MFA uses more than one verification factor." in events[0].content.parts[0].text
     assert "Source: security.csv, chunk 12." in events[0].content.parts[0].text
-
-
-def test_followup_suggestions_use_only_cached_questions() -> None:
-    suggestions = _followup_suggestions(
-        [{"question": "What is MFA?", "answer": "A second factor."}]
-    )
-
-    assert "What is MFA?" in suggestions
-    assert "instant cached answer" in suggestions
 
 
 def test_message_agent_detects_adk_inline_uploads() -> None:

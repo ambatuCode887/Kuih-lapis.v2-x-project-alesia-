@@ -101,6 +101,8 @@ _ANALYSIS_CUES = (
 _URL_ANALYSIS_CUES = (
     "check this domain",
     "check this ip",
+    "malicious link",
+    "is this link safe",
     "analyze this url",
     "analyse this url",
     "url reputation",
@@ -159,7 +161,24 @@ _ROOT_INSTRUCTION = (
     "add unsupported facts or claim checks that were not performed. Preserve "
     "uncertainty. For retrieved knowledge, retain source and chunk-index "
     "citations supplied by the retrieval specialist. If no relevant evidence "
-    "was returned, say the knowledge base did not provide an answer."
+    "was returned, say the knowledge base did not provide an answer. For "
+    "cybersecurity knowledge answers, end with one or two concise, "
+    "model-generated follow-up questions tailored to the user's inquiry and "
+    "the supported answer. Create these questions yourself; do not copy "
+    "questions from retrieved Qdrant records or require a matching record. "
+    "When no relevant evidence was returned, ask useful questions that clarify "
+    "the user's topic or circumstances without implying unsupported facts. Do "
+    "not invent follow-up questions for other request types, but do relay any "
+    "focused questions supplied by the clarification specialist. When the user "
+    "reports being scammed or asks where to report a scam, include the "
+    "Malaysian NSRC hotline (dial 997) and the NFCC official website "
+    "https://nfcc.jpm.gov.my/index.php/en/. If the user clearly indicates the "
+    "incident is outside Malaysia, identify these as Malaysian resources "
+    "rather than implying they are local. Do not claim to have contacted either "
+    "service. When the user asks about or mentions mule accounts, tell them "
+    "they can look up Malaysian mule-account information at the official "
+    "Semak Mule portal, https://semakmule.rmp.gov.my/. Do not claim to perform "
+    "the lookup or ask them to share account or phone numbers in chat."
 )
 
 
