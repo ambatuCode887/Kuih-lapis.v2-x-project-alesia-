@@ -1,4 +1,5 @@
 from agents.tools.agents.url_check.agent import VT_READ_ONLY_TOOLS, url_check_agent
+from agents.agent import requires_coordinator_followup
 
 
 def test_url_check_agent_is_read_only():
@@ -9,9 +10,14 @@ def test_url_check_agent_is_read_only():
     assert "Never submit" in agent.instruction
 
 
-def test_url_check_routes_to_coordinator():
+def test_url_check_agent_has_no_nested_subagents():
     agent = url_check_agent()
-    assert [a.name for a in agent.sub_agents] == ["coordinator_agent"]
+    assert agent.sub_agents == []
+
+
+def test_url_assessment_skips_redundant_coordinator_followup():
+    assert requires_coordinator_followup("url_check_agent") is False
+    assert requires_coordinator_followup("message_agent") is True
 
 
 def test_url_check_registered_on_root_agent():

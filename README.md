@@ -123,8 +123,11 @@ The project expects the following variables in `.env`:
 ```dotenv
 GOOGLE_GENAI_USE_ENTERPRISE=0
 GOOGLE_API_KEY=your_google_api_key_here
+LLM_PROVIDER=ollama
 OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_BASE_URL=http://localhost:11434
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
 
 EMBEDDING_PROVIDER=ollama
 EMBEDDING_MODEL=nomic-embed-text:latest
@@ -142,9 +145,14 @@ CONFLUENCE_PARENT_ID=
 ```
 
 A reusable skeleton is already provided in `.env.example`.
-Agent responses and knowledge embeddings use local Ollama models. All teammates
-must use the same embedding model for ingestion and retrieval against the shared
-Qdrant collection.
+By default, agent responses and knowledge embeddings use local Ollama models.
+All teammates must use the same embedding model for ingestion and retrieval
+against the shared Qdrant collection.
+
+To use OpenRouter for agent responses, set `LLM_PROVIDER=openrouter` and put your
+key in `OPENROUTER_API_KEY` in the local `.env` file. The default model above is
+the free Nemotron variant. Keep the key private; do not put it in `.env.example`
+or commit `.env`. Embeddings continue to use the configured `EMBEDDING_PROVIDER`.
 
 ## 9. Common troubleshooting
 
