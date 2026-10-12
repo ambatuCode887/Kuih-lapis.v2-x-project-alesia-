@@ -12,6 +12,16 @@ def retrieve_knowledge(
     score_threshold: float | None = None,
 ) -> dict[str, Any]:
     """Retrieve relevant RAG chunks from Qdrant for a user query."""
+    if isinstance(score_threshold, str):
+        normalized_threshold = score_threshold.strip()
+        if normalized_threshold.casefold() in {"", "none", "null"}:
+            score_threshold = None
+        else:
+            try:
+                score_threshold = float(normalized_threshold)
+            except ValueError as error:
+                raise ValueError("score_threshold must be a number or null.") from error
+
     vector = embed_text(query)
     hits = search(vector=vector, limit=limit, score_threshold=score_threshold)
     results = []

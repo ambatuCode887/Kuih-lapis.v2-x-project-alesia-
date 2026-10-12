@@ -252,6 +252,10 @@ def _followup_suggestions(followups: list[dict]) -> str:
     )
 
 
+def requires_coordinator_followup(target_name: str) -> bool:
+    return target_name == "message_agent"
+
+
 class RequestRouter(Agent):
     """Route to a specialist first, then let the root author the final answer."""
 
@@ -304,7 +308,7 @@ class RequestRouter(Agent):
                 yield event
 
         final_report = initial_report
-        if target_name in {"message_agent", "url_check_agent"}:
+        if requires_coordinator_followup(target_name):
             assessment = parse_assessment(initial_report)
             ctx.session.state["coordinator_assessment"] = assessment
             coordinator = next(

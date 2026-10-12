@@ -41,6 +41,22 @@ def test_evaluate_retrieval_reports_keyword_recall() -> None:
     assert report["average_keyword_recall"] == 0.5
 
 
+def test_retrieve_knowledge_normalizes_null_score_threshold(monkeypatch) -> None:
+    from agents.tools.functions.retrieve import credential_stuffing
+
+    captured = {}
+    monkeypatch.setattr(credential_stuffing, "embed_text", lambda query: [0.1])
+    monkeypatch.setattr(
+        credential_stuffing,
+        "search",
+        lambda **kwargs: captured.update(kwargs) or [],
+    )
+
+    credential_stuffing.retrieve_knowledge("phishing URL", score_threshold="none")
+
+    assert captured["score_threshold"] is None
+
+
 def test_source_grounding_requires_a_retrieved_citation() -> None:
     valid = _source_grounding_result(
         "Use MFA [data.md#1]", ["[data.md#1]"]
