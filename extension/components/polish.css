@@ -1,0 +1,154 @@
+/* Finishing layer: flat surfaces, thin borders, restrained accents.
+   Loaded after chat.css and attachments.css, before friendly.css. */
+
+* {
+  scrollbar-color: var(--line) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--pine) 30%, transparent);
+}
+
+/* ───────── Chrome ───────── */
+.brand-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-transform: none;
+}
+
+.bar {
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: none;
+}
+
+.rail {
+  background: var(--card);
+  border-right: 1px solid var(--line);
+}
+
+.rail-title,
+.slip-label,
+.scale-labels,
+.seal-sub {
+  font-family: var(--font-body);
+  letter-spacing: 0;
+}
+
+.rail-new {
+  box-shadow: none;
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.rail-new:hover,
+.send:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.chip {
+  color: var(--pine-ink);
+}
+
+/* ───────── Start screen ───────── */
+.welcome-title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.starter {
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.starter:hover {
+  border-color: var(--pine);
+  box-shadow: var(--shadow);
+  transform: none;
+}
+
+.starter-icon {
+  background: color-mix(in srgb, var(--pine) 12%, var(--card));
+  box-shadow: none;
+  color: var(--pine);
+}
+
+/* ───────── Conversation and message box ───────── */
+.said {
+  box-shadow: none;
+  font-weight: 500;
+}
+
+.composer {
+  background: var(--card);
+  box-shadow: var(--shadow);
+  backdrop-filter: none;
+}
+
+.composer:focus-within {
+  border-color: var(--pine);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pine) 22%, transparent);
+}
+
+.send {
+  box-shadow: none;
+}
+
+.dots i {
+  box-shadow: none;
+}
+
+/* ───────── Result card ───────── */
+.slip {
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--band);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.slip-number,
+.seal {
+  text-shadow: none;
+}
+
+.scale-seg.is-active {
+  box-shadow: none;
+}
+
+.received {
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+/* Suspicious phrases: amber marker with an underline */
+.hl {
+  border-bottom: 2px solid var(--mark-edge);
+  border-radius: 2px 2px 0 0;
+}
+
+.finding-no {
+  border: 1px solid var(--mark-edge);
+}
+
+.urgent {
+  box-shadow: none;
+}
+
+/* ───────── Attachments and preview ───────── */
+.attachment-thumb,
+.sent-image {
+  border-color: var(--line);
+}
+
+.attachment-remove {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.lightbox {
+  background: rgba(4, 9, 8, 0.88);
+}
