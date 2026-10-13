@@ -43,6 +43,18 @@ def test_artifact_analysis_requests_bypass_knowledge_route() -> None:
     assert route_request_to_agent("Example link, is this a malicious link?") == "url_check_agent"
 
 
+def test_suspicious_url_question_routes_to_url_check_even_after_image_turn() -> None:
+    request = "http://www.fairytalesinc.com is this a suspicious link?"
+
+    assert route_request_to_agent(request) == "url_check_agent"
+    assert route_request_to_agent(
+        request,
+        attachment_present=True,
+        user_request=request,
+    ) == "url_check_agent"
+    assert route_request_to_agent("Is this a suspicious link?") == "url_check_agent"
+
+
 def test_root_generates_retrieval_followups_without_qdrant_question_records() -> None:
     assert "model-generated follow-up questions" in _ROOT_INSTRUCTION
     assert "do not copy questions from retrieved Qdrant records" in _ROOT_INSTRUCTION
