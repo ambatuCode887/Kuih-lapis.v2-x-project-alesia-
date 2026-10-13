@@ -1,0 +1,532 @@
+/* Easy-to-read layer: big text, big buttons, few words.
+   Loaded last. Sizes use rem so the "text size" button scales everything. */
+
+html {
+  font-size: calc(16px * var(--scale, 1));
+}
+
+body {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--pine);
+  outline-offset: 3px;
+}
+
+/* ───────── Chrome ───────── */
+.brand-name {
+  font-size: 0.95rem;
+}
+
+.ghost {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 1rem;
+}
+
+.icon-only {
+  width: 44px;
+  height: 44px;
+}
+
+.rail-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  font-size: 1.05rem;
+}
+
+.rail-title {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.rail-empty,
+.rail-item {
+  font-size: 1rem;
+}
+
+.chip {
+  font-size: 0.95rem;
+}
+
+/* ───────── Start screen ───────── */
+.welcome-title {
+  font-size: 2.1rem;
+  line-height: 1.1;
+}
+
+.app-tab .welcome-title {
+  font-size: 2.8rem;
+}
+
+/* No terminal prompt or caret: they add noise for new users. */
+.welcome-title::before,
+.welcome-title::after {
+  content: none;
+}
+
+.welcome-lead {
+  max-width: none;
+  margin-bottom: 22px;
+  font-size: 1.2rem;
+}
+
+.starters {
+  flex-direction: row;
+  gap: 10px;
+}
+
+.starters li {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Compact tiles: icon on top, label underneath. */
+.starter {
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  min-height: 132px;
+  padding: 14px 8px;
+  gap: 10px;
+  text-align: center;
+}
+
+.starter-icon {
+  width: 52px;
+  height: 52px;
+}
+
+.starter-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.starter-text {
+  align-items: center;
+  flex: 0 1 auto;
+}
+
+.starter-text strong {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* The short descriptions only show where there is room. */
+.starter-text small {
+  display: none;
+  font-size: 0.95rem;
+}
+
+.app-tab .starter-text small {
+  display: block;
+}
+
+.app-tab .starter {
+  min-height: 160px;
+}
+
+.welcome-tip {
+  margin-top: 20px;
+  font-size: 1rem;
+}
+
+/* ───────── Conversation ───────── */
+.said {
+  max-width: 94%;
+  padding: 12px 16px;
+  font-size: 1.1rem;
+}
+
+.reply {
+  font-size: 1.1rem;
+}
+
+.working {
+  font-size: 1.15rem;
+}
+
+.dots i {
+  width: 9px;
+  height: 9px;
+}
+
+.reply-more summary,
+.details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  font-size: 1.05rem;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.reply-more summary::-webkit-details-marker,
+.details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.reply-more summary::after,
+.details > summary::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-right: 2.5px solid var(--ink-2);
+  border-bottom: 2.5px solid var(--ink-2);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+
+.reply-more[open] > summary::after,
+.details[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+.reply-more .reply {
+  padding-top: 12px;
+}
+
+.notice {
+  font-size: 1rem;
+}
+
+/* ───────── Message box ───────── */
+.composer {
+  padding: 10px 12px 12px;
+  gap: 10px;
+}
+
+.composer-row {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.composer textarea {
+  order: 1;
+  flex: 1 1 100%;
+  min-height: 3.2em;
+  padding: 6px 4px;
+  font-size: 1.15rem;
+  line-height: 1.45;
+}
+
+.attach,
+.send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  width: auto;
+  padding: 0 18px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+.attach {
+  order: 2;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.attach:hover {
+  border-color: var(--pine);
+}
+
+.send {
+  order: 3;
+  margin-left: auto;
+  min-width: 140px;
+}
+
+.attachment-thumb img {
+  width: 96px;
+  height: 96px;
+}
+
+.attachment-remove {
+  width: 30px;
+  height: 30px;
+  top: -10px;
+  right: -10px;
+}
+
+.attachment-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ───────── Result: answer first ───────── */
+.slip {
+  padding: 18px;
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.verdict-icon {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--band) 16%, transparent);
+  box-shadow: inset 0 0 0 2px var(--band);
+  color: var(--band);
+}
+
+.verdict-title {
+  margin: 0;
+  color: var(--band);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+}
+
+.verdict-sub {
+  margin: 6px 0 0;
+  font-size: 1.15rem;
+}
+
+.steps {
+  margin-top: 18px;
+}
+
+.steps-title {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.todo {
+  gap: 10px;
+}
+
+.todo li {
+  padding-left: 38px;
+  font-size: 1.15rem;
+}
+
+.todo li::before {
+  left: 4px;
+  top: 6px;
+  width: 16px;
+  height: 9px;
+  border-width: 3.5px;
+}
+
+.urgent {
+  margin-top: 18px;
+  padding: 14px 16px;
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+.urgent-number {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.read-aloud {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 18px;
+  background: transparent;
+  color: var(--pine);
+  border: 2px solid var(--pine);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.read-aloud:hover,
+.read-aloud.is-on {
+  background: var(--pine);
+  color: var(--pine-ink);
+}
+
+.details {
+  margin-top: 14px;
+}
+
+.details-body {
+  padding-top: 14px;
+}
+
+.details-score {
+  margin: 10px 0 0;
+  color: var(--ink-2);
+  font-size: 1rem;
+}
+
+.slip-summary {
+  font-size: 1.05rem;
+}
+
+/* Detail text stays readable: sentence case, no spaced-out capitals. */
+.slip-label {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.scale-labels {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.received {
+  font-size: 1rem;
+}
+
+.finding {
+  font-size: 1.02rem;
+}
+
+.finding-no {
+  width: 26px;
+  height: 26px;
+  font-size: 0.9rem;
+}
+
+.finding-evidence {
+  font-size: 0.95rem;
+}
+
+.slip-foot {
+  font-size: 0.95rem;
+}
+
+@media (max-width: 380px) {
+  .verdict-icon {
+    width: 64px;
+    height: 64px;
+  }
+  .verdict-title {
+    font-size: 1.5rem;
+  }
+}
+
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ───────── Speak button (design only) ───────── */
+.mic {
+  order: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 18px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mic:hover {
+  border-color: var(--pine);
+}
+
+.mic.is-listening {
+  background: var(--risk-critical);
+  border-color: var(--risk-critical);
+  color: #fff;
+  animation: ring 1.4s ease-out infinite;
+}
+
+@keyframes ring {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--risk-critical) 45%, transparent); }
+  to { box-shadow: 0 0 0 12px transparent; }
+}
+
+.listening {
+  order: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--pine) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--pine) 40%, var(--line));
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+}
+
+.wave i {
+  width: 4px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--pine);
+  transform-origin: center;
+  animation: wave 0.9s ease-in-out infinite;
+}
+
+.wave i:nth-child(2) { animation-delay: 0.12s; }
+.wave i:nth-child(3) { animation-delay: 0.24s; }
+.wave i:nth-child(4) { animation-delay: 0.36s; }
+.wave i:nth-child(5) { animation-delay: 0.48s; }
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic.is-listening,
+  .wave i {
+    animation: none;
+  }
+}
