@@ -5,7 +5,7 @@ import { splitDataUrl } from './images';
  * Set to true to talk to the real ADK server (`adk api_server`).
  * While false, the extension answers with built-in sample replies.
  */
-const USE_BACKEND = false;
+const USE_BACKEND = true;
 
 const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8000';
 const APP_NAME = 'agents';
@@ -58,7 +58,7 @@ async function ensureSession(base: string): Promise<string> {
   const created = await fetch(sessions, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify({ sessionId }),
   });
   if (!created.ok) {
     throw new Error(`Could not start a session (HTTP ${created.status}).`);
@@ -213,20 +213,20 @@ export async function askAgent(message: string, images: string[] = []): Promise<
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        app_name: APP_NAME,
-        user_id: USER_ID,
-        session_id: sessionId,
-        new_message: {
+        appName: APP_NAME,
+        userId: USER_ID,
+        sessionId,
+        newMessage: {
           role: 'user',
           parts: [
             { text: message || 'Analyze this screenshot.' },
             ...images.map((image, index) => {
               const { mimeType, data } = splitDataUrl(image);
               return {
-                inline_data: {
-                  mime_type: mimeType,
+                inlineData: {
+                  mimeType,
                   data,
-                  display_name: `screenshot-${index + 1}.jpg`,
+                  displayName: `screenshot-${index + 1}.jpg`,
                 },
               };
             }),
