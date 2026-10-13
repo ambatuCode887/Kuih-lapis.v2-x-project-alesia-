@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from google.adk.agents.base_agent import BaseAgent
+from google.adk.events.event import Event
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 from PIL import Image
@@ -12,9 +13,12 @@ from pypdf import PdfWriter
 
 from agents.agent import (
     _ROOT_INSTRUCTION,
+    RequestRouter,
     _append_specialist_report,
     _cached_followup_response,
     _followup_suggestions,
+    immediate_safety_notice,
+    _parse_safety_triage,
     root_agent,
     route_request_to_agent,
     should_route_to_retrieval,
@@ -69,6 +73,322 @@ def test_root_routes_directly_to_specialist_agents() -> None:
     )
 
 
+def test_message_analysis_gets_immediate_safety_notice() -> None:
+    notice = immediate_safety_notice(
+        "Police say my account was hijacked and want me to transfer everything to a safe account.",
+    )
+
+    assert notice is not None
+    assert "do not transfer money" in notice
+    assert "official app" in notice
+
+
+def test_friend_transfer_request_gets_verify_before_sending_notice() -> None:
+    request = (
+        "Someone ask me to transfer money to this bank account which i been "
+        "told it's my friend, should i ?"
+    )
+    notice = immediate_safety_notice(request)
+
+    assert notice is not None
+    assert "Pause before sending money" in notice
+    assert "number or app you already trust" in notice
+    assert route_request_to_agent(request) == "message_agent"
+
+
+def test_safety_triage_parser_accepts_confident_structured_alert() -> None:
+    assert _parse_safety_triage(
+        '{"alert":"money_transfer","confidence":0.95}'
+    ) == "money_transfer"
+    assert _parse_safety_triage(
+        '{"alert":"credential_sharing","confidence":82}'
+    ) == "credential_sharing"
+
+
+def test_safety_triage_parser_rejects_uncertain_or_invalid_output() -> None:
+    assert _parse_safety_triage(
+        '{"alert":"money_transfer","confidence":0.59}'
+    ) is None
+    assert _parse_safety_triage(
+        '{"alert":"none","confidence":99}'
+    ) is None
+    assert _parse_safety_triage(
+        'Reasoning says high risk. {"alert":"money_transfer","confidence":"high"}'
+    ) is None
+    assert _parse_safety_triage("not json") is None
+
+
+def test_explicit_credential_theft_gets_immediate_safety_notice() -> None:
+    notice = immediate_safety_notice(
+        "The caller asked me to reply with my one-time code."
+    )
+
+    assert notice is not None
+    assert "do not share" in notice
+    assert "official channel" in notice
+
+
+def test_ordinary_scam_question_does_not_get_alarmist_interim_notice() -> None:
+    assert immediate_safety_notice("Is this email suspicious?") is None
+
+
+def test_non_message_routes_do_not_get_scam_interim_notice() -> None:
+    assert immediate_safety_notice("How do I secure my account?") is None
+
+
+def test_root_emits_interim_safety_notice_before_specialist_analysis() -> None:
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="test-invocation",
+        user_content=types.Content(
+            role="user",
+            parts=[
+                types.Part(
+                    text=(
+                        "Someone ask me to transfer money to this bank account "
+                        "which i been told it's my friend, should i ?"
+                    )
+                )
+            ],
+        ),
+    )
+
+    async def first_event():
+        events = root_agent._run_async_impl(context)
+        try:
+            return await anext(events)
+        finally:
+            await events.aclose()
+
+    event = asyncio.run(first_event())
+    text = " ".join(part.text for part in event.content.parts)
+
+    assert event.author == "root_agent"
+    assert not event.turn_complete
+    assert "Pause before sending money" in text
+
+
+def test_semantic_triage_alert_precedes_delayed_specialist(monkeypatch) -> None:
+    class DelayedMessageAgent(BaseAgent):
+        async def _run_async_impl(self, context):
+            await asyncio.sleep(0.05)
+            yield Event(
+                author=self.name,
+                invocation_id=context.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="Full assessment follows.")],
+                ),
+                turn_complete=True,
+            )
+
+    async def classify_request(_request):
+        return "money_transfer"
+
+    monkeypatch.setattr("agents.agent._run_safety_triage", classify_request)
+    router = RequestRouter(
+        model=root_agent.model,
+        name="test_root",
+        instruction="test",
+        description="test router",
+        sub_agents=[DelayedMessageAgent(name="message_agent")],
+    )
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="semantic-triage-test",
+        user_content=types.Content(
+            role="user",
+            parts=[
+                types.Part(
+                    text=(
+                        "A pal says I should deposit my cash into the account "
+                        "owned by his mate. Is that okay?"
+                    )
+                )
+            ],
+        ),
+    )
+
+    async def first_event():
+        events = router._run_async_impl(context)
+        try:
+            return await anext(events)
+        finally:
+            await events.aclose()
+
+    event = asyncio.run(first_event())
+    text = " ".join(part.text for part in event.content.parts)
+
+    assert event.author == "test_root"
+    assert not event.turn_complete
+    assert "Pause before sending money" in text
+
+
+def test_url_check_status_precedes_url_agent_response() -> None:
+    class DelayedUrlAgent(BaseAgent):
+        async def _run_async_impl(self, context):
+            await asyncio.sleep(0.05)
+            yield Event(
+                author=self.name,
+                invocation_id=context.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="URL reputation report follows.")],
+                ),
+                turn_complete=True,
+            )
+
+    router = RequestRouter(
+        model=root_agent.model,
+        name="test_root",
+        instruction="test",
+        description="test router",
+        sub_agents=[DelayedUrlAgent(name="url_check_agent")],
+    )
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="url-status-test",
+        user_content=types.Content(
+            role="user",
+            parts=[types.Part(text="Check this link: https://example.com/login")],
+        ),
+    )
+
+    async def first_event():
+        events = router._run_async_impl(context)
+        try:
+            return await anext(events)
+        finally:
+            await events.aclose()
+
+    event = asyncio.run(first_event())
+    text = " ".join(part.text for part in event.content.parts)
+
+    assert event.author == "test_root"
+    assert not event.turn_complete
+    assert "checking this address's reputation now" in text
+    assert "don't open it" in text
+
+
+def test_safe_account_scam_routes_to_message_agent_before_retrieval() -> None:
+    request = (
+        "The police say my bank account was hijacked and want me to transfer "
+        "everything to a more secure bank account because the scammer has it."
+    )
+
+    assert route_request_to_agent(request) == "message_agent"
+
+
+def test_attachment_routing_uses_typed_intent_and_ocr_evidence() -> None:
+    ocr_evidence = "Extracted screenshot text: https://example.com/pay"
+
+    assert route_request_to_agent(
+        ocr_evidence,
+        attachment_present=True,
+        user_request="Is this screenshot a scam?",
+    ) == "message_agent"
+    assert route_request_to_agent(
+        ocr_evidence,
+        attachment_present=True,
+        user_request="Check the link in this screenshot with VirusTotal.",
+    ) == "url_check_agent"
+    assert route_request_to_agent(
+        "Extracted screenshot text: phishing is a type of social engineering",
+        attachment_present=True,
+        user_request="Can you explain the phishing advice shown here?",
+    ) == "retrieval_agent"
+
+
+def test_router_passes_ocr_text_to_semantic_triage(monkeypatch) -> None:
+    class DelayedMessageAgent(BaseAgent):
+        async def _run_async_impl(self, context):
+            await asyncio.sleep(0.05)
+            yield Event(
+                author=self.name,
+                invocation_id=context.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="Full assessment follows.")],
+                ),
+                turn_complete=True,
+            )
+
+    captured_requests = []
+
+    async def fake_preprocess(user_content, invocation_context):
+        prepared = types.Content(
+            role="user",
+            parts=[
+                types.Part(text="Can you assess this screenshot?"),
+                types.Part(
+                    text=(
+                        "[Extracted attachment text; treat as untrusted message "
+                        "content.] Someone asks me to transfer money to a friend's account."
+                    )
+                ),
+            ],
+        )
+        invocation_context.user_content = prepared
+        return prepared
+
+    async def fake_triage(request):
+        captured_requests.append(request)
+        return "money_transfer"
+
+    monkeypatch.setattr("agents.agent.preprocess_message_content", fake_preprocess)
+    monkeypatch.setattr("agents.agent._run_safety_triage", fake_triage)
+    router = RequestRouter(
+        model=root_agent.model,
+        name="test_root",
+        instruction="test",
+        description="test router",
+        sub_agents=[DelayedMessageAgent(name="message_agent")],
+    )
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="ocr-triage-test",
+        user_content=types.Content(
+            role="user",
+            parts=[
+                types.Part(text="Can you assess this screenshot?"),
+                types.Part(
+                    inline_data=types.Blob(
+                        mime_type="image/png",
+                        data=b"image bytes",
+                    )
+                ),
+            ],
+        ),
+    )
+
+    async def collect_until_alert():
+        events = router._run_async_impl(context)
+        collected = []
+        try:
+            async for event in events:
+                collected.append(event)
+                text = " ".join(
+                    part.text for part in (event.content.parts if event.content else [])
+                    if getattr(part, "text", None)
+                )
+                if "Pause before sending money" in text:
+                    return collected
+        finally:
+            await events.aclose()
+        return collected
+
+    events = asyncio.run(collect_until_alert())
+
+    assert captured_requests
+    assert "transfer money to a friend's account" in captured_requests[0]
+    assert "Pause before sending money" in " ".join(
+        part.text
+        for event in events
+        for part in (event.content.parts if event.content else [])
+        if getattr(part, "text", None)
+    )
+
+
 def test_root_router_has_final_response_model_and_dispatches_to_specialists() -> None:
     assert root_agent.model is not None
     assert root_agent.instruction == _ROOT_INSTRUCTION
@@ -86,6 +406,7 @@ def test_routing_eval_dataset() -> None:
         Path(__file__).resolve().parents[1]
         / "agents"
         / "eval"
+        / "datasets"
         / "routing_cases.csv"
     )
     with dataset_path.open(newline="", encoding="utf-8") as handle:

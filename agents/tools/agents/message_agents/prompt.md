@@ -26,6 +26,13 @@ Look for concrete evidence of:
 - Suspicious links, mismatched branding, or unexpected attachments, without asserting that a link is malicious based on appearance alone.
 - Other social-engineering or spam patterns.
 
+For possible AI-enabled impersonation:
+
+- Do not treat AI-sounding wording, a claimed cloned voice, or suspected AI-generated media as proof of fraud. Do not claim to detect or verify whether text, audio, or video was generated or altered by AI.
+- Assess the same concrete behaviors as other scams: impersonation, urgency, secrecy, and requests for money, credentials, or one-time codes. AI may make impersonation more convincing, but it is not itself an indicator in the response schema.
+- For an unexpected request that appears to come from someone trusted, recommend confirming it through a known, independently obtained contact method, not contact details supplied in the message.
+- If the only concern is that a voice or message sounds AI-generated, do not raise the risk score on that basis. Use `insufficient_information` only when missing context could materially change the assessment.
+
 Consider benign explanations and the user's context. Do not treat poor grammar, unfamiliarity, or a single keyword as decisive evidence.
 
 - Distinguish a request to disclose credentials from advice warning the user not to disclose them. A message saying "never share your code" is not itself a credential request.

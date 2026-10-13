@@ -76,11 +76,16 @@ def test_heldout_questions_are_separate_from_indexed_and_development_questions()
 
     from agents.eval.dataset import default_ragas_dataset_path, load_ragas_cases
 
-    eval_dir = Path(__file__).resolve().parents[1] / "agents" / "eval"
-    heldout_path = eval_dir / "heldout_cybersecurity.csv"
+    eval_datasets_dir = (
+        Path(__file__).resolve().parents[1]
+        / "agents"
+        / "eval"
+        / "datasets"
+    )
+    heldout_path = eval_datasets_dir / "heldout_cybersecurity.csv"
     heldout = load_ragas_cases(heldout_path)
     indexed = load_ragas_cases(default_ragas_dataset_path())
-    dev = load_ragas_cases(eval_dir / "retrieval_dev_cybersecurity.csv")
+    dev = load_ragas_cases(eval_datasets_dir / "retrieval_dev_cybersecurity.csv")
     other_questions = {case.question.strip().casefold() for case in [*indexed, *dev]}
 
     assert len(heldout) == 8

@@ -171,6 +171,21 @@ async def prepare_message_attachments(
         return
 
     invocation_context = callback_context.get_invocation_context()
+    prepared_content = await preprocess_message_content(
+        user_content,
+        invocation_context,
+    )
+    user_content.parts = prepared_content.parts
+
+
+async def preprocess_message_content(
+    user_content: types.Content | None,
+    invocation_context: InvocationContext,
+) -> types.Content | None:
+    """Replace attachment binaries with untrusted extracted text for all agents."""
+    if user_content is None or not has_attachment(user_content):
+        return user_content
+
     retained_parts = []
     reports = []
     artifact_names = []
@@ -236,15 +251,16 @@ async def prepare_message_attachments(
             )
         )
     )
-    user_content.parts = retained_parts
-    invocation_context.user_content = types.Content(
+    prepared_content = types.Content(
         role=user_content.role,
         parts=list(retained_parts),
     )
+    invocation_context.user_content = prepared_content
     for event in invocation_context.session.events:
         if (
             event.author == "user"
             and event.invocation_id == invocation_context.invocation_id
             and event.content
         ):
-            event.content.parts = list(retained_parts)
+            event.content.parts = list(prepared_content.parts)
+    return prepared_content
