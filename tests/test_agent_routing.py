@@ -19,6 +19,7 @@ from agents.agent import (
     _followup_suggestions,
     immediate_safety_notice,
     _parse_safety_triage,
+    _run_safety_triage,
     root_agent,
     route_request_to_agent,
     should_route_to_retrieval,
@@ -115,6 +116,9 @@ def test_safety_triage_parser_accepts_confident_structured_alert() -> None:
     assert _parse_safety_triage(
         '{"alert":"credential_sharing","confidence":82}'
     ) == "credential_sharing"
+    assert _parse_safety_triage(
+        '{"alert":"phishing_link","confidence":0.9}'
+    ) == "phishing_link"
 
 
 def test_safety_triage_parser_rejects_uncertain_or_invalid_output() -> None:
@@ -128,6 +132,36 @@ def test_safety_triage_parser_rejects_uncertain_or_invalid_output() -> None:
         'Reasoning says high risk. {"alert":"money_transfer","confidence":"high"}'
     ) is None
     assert _parse_safety_triage("not json") is None
+
+
+def test_safety_triage_uses_configured_ollama_model(monkeypatch) -> None:
+    completion_args = {}
+
+    async def fake_completion(**kwargs):
+        completion_args.update(kwargs)
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content='{"alert":"money_transfer","confidence":0.8}'
+                    )
+                )
+            ]
+        )
+
+    settings = {
+        "LLM_PROVIDER": "ollama",
+        "OLLAMA_MODEL": "qwen2.5:7b",
+        "OLLAMA_TRIAGE_MODEL": "qwen2.5:3b",
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+    }
+    monkeypatch.setattr("agents.agent.env", lambda name, default=None: settings.get(name, default))
+    monkeypatch.setattr("agents.agent.acompletion", fake_completion)
+
+    assert asyncio.run(_run_safety_triage("Should I transfer the money?")) == "money_transfer"
+    assert completion_args["model"] == "ollama_chat/qwen2.5:3b"
+    assert completion_args["api_base"] == "http://localhost:11434"
+    assert completion_args["response_format"] == {"type": "json_object"}
 
 
 def test_explicit_credential_theft_gets_immediate_safety_notice() -> None:

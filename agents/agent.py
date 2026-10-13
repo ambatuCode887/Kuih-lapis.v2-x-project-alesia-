@@ -132,8 +132,13 @@ _FEATURE_VECTOR_CUES = (
 )
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 _IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-_TRIAGE_TIMEOUT_SECONDS = 8
-_TRIAGE_CATEGORIES = {"money_transfer", "credential_sharing", "remote_access"}
+_TRIAGE_TIMEOUT_SECONDS = 30
+_TRIAGE_CATEGORIES = {
+    "money_transfer",
+    "credential_sharing",
+    "remote_access",
+    "phishing_link",
+}
 _TRIAGE_INSTRUCTION = """
 Classify whether the user's message describes a real, current or imminent request
 that could put their money, credentials, or device at risk. Understand paraphrases
@@ -142,6 +147,11 @@ to send or delegate money to a bank account said to belong to that friend's
 friend, even if the user uses awkward wording or does not call it a scam; an
 authority claiming the account is compromised and telling them to move funds; a
 caller asking for a password or one-time code; or unsolicited remote access.
+
+Also classify phishing_link when an apparent delivery company, bank, or other
+trusted service pressures the user to click a link, pay a fee, sign in, or update
+personal or payment details. Advise them to verify through the official app or
+website instead; do not claim the message is definitely fraudulent.
 
 Treat an unclear third-party recipient as reason to pause and independently
 verify before sending, not as proof of fraud. A familiar person may be mistaken
@@ -154,8 +164,11 @@ Do not decide whether a person is actually a scammer. A transfer request from a
 friend still merits independent verification, not an accusation.
 
 Return only a JSON object with exactly these keys:
-{"alert":"money_transfer|credential_sharing|remote_access|none","confidence":0.0}
-Confidence must be a number from 0.0 to 1.0. Do not include analysis or reasoning.
+{"alert":"money_transfer","confidence":0.8}
+The alert value must be exactly one of "money_transfer", "credential_sharing",
+"remote_access", "phishing_link", or "none". For no alert, use
+{"alert":"none","confidence":0.0}. Confidence must be a number from 0.0 to
+1.0. Do not include analysis or reasoning.
 """.strip()
 _TRIAGE_ALERT_MESSAGES = {
     "money_transfer": (
@@ -170,6 +183,11 @@ _TRIAGE_ALERT_MESSAGES = {
     "remote_access": (
         "Pause: do not grant remote access to an unsolicited caller. Contact "
         "the organization through an official channel. I'm checking the details now."
+    ),
+    "phishing_link": (
+        "Pause: don't use links or pay fees from this message. Check through the "
+        "official app or by typing the website address yourself. I'm checking "
+        "the details now."
     ),
 }
 
@@ -304,19 +322,31 @@ def _parse_safety_triage(text: str) -> str | None:
         return None
     return alert
 
-
+#here is the first respondant agent for safety triage u can change their LLM provider
 async def _run_safety_triage(request: str) -> str | None:
-    model_name = env("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL)
+    provider = (env("LLM_PROVIDER", "ollama") or "ollama").strip().lower()
+    if provider == "openrouter":
+        model_name = env("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL)
+        model = f"openrouter/{model_name or DEFAULT_OPENROUTER_MODEL}"
+        provider_options = {
+            "reasoning": {"effort": "none", "exclude": True},
+        }
+    else:
+        model_name = env("OLLAMA_TRIAGE_MODEL", "qwen2.5:3b") or "qwen2.5:3b"
+        api_base = env("OLLAMA_BASE_URL", "http://localhost:11434")
+        model = f"ollama_chat/{model_name}"
+        provider_options = {"api_base": api_base}
+
     response = await acompletion(
-        model=f"openrouter/{model_name or DEFAULT_OPENROUTER_MODEL}",
+        model=model,
         messages=[
             {"role": "system", "content": _TRIAGE_INSTRUCTION},
             {"role": "user", "content": request},
         ],
         response_format={"type": "json_object"},
-        reasoning={"effort": "none", "exclude": True},
         max_tokens=128,
         temperature=0,
+        **provider_options,
     )
     choices = response.choices or []
     if not choices:

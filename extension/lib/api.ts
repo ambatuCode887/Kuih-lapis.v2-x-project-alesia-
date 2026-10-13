@@ -29,6 +29,7 @@ interface AdkPart {
 interface AdkEvent {
   author?: string;
   content?: { parts?: AdkPart[] };
+  turnComplete?: boolean;
 }
 
 async function backendUrl(): Promise<string> {
@@ -42,6 +43,58 @@ function eventText(event: AdkEvent): string {
     .map((part) => part.text ?? '')
     .join('')
     .trim();
+}
+
+async function readAgentEvents(
+  response: Response,
+  onProgress?: (text: string) => void,
+): Promise<AdkEvent[]> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('The backend did not return a response stream.');
+
+  const decoder = new TextDecoder();
+  const events: AdkEvent[] = [];
+  let buffer = '';
+
+  const consumeFrame = (frame: string) => {
+    const data = frame
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+    if (!data) return;
+
+    const payload = JSON.parse(data) as AdkEvent & {
+      error?: string;
+      error_details?: { error_message?: string };
+    };
+    if (payload.error) {
+      throw new Error(payload.error_details?.error_message ?? payload.error);
+    }
+
+    const event = payload as AdkEvent;
+    events.push(event);
+    if (event.author === 'root_agent' && event.turnComplete === false) {
+      const progress = eventText(event);
+      if (progress) onProgress?.(progress);
+    }
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const frames = buffer.split(/\r?\n\r?\n/);
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) consumeFrame(frame);
+      if (done) break;
+    }
+    if (buffer.trim()) consumeFrame(buffer);
+  } finally {
+    reader.releaseLock();
+  }
+
+  return events;
 }
 
 async function ensureSession(base: string): Promise<string> {
@@ -202,20 +255,25 @@ async function sampleReply(message: string, images: string[]): Promise<AgentRepl
   };
 }
 
-export async function askAgent(message: string, images: string[] = []): Promise<AgentReply> {
+export async function askAgent(
+  message: string,
+  images: string[] = [],
+  onProgress?: (text: string) => void,
+): Promise<AgentReply> {
   if (!USE_BACKEND) return sampleReply(message, images);
 
   const base = await backendUrl();
   let response: Response;
   try {
     const sessionId = await ensureSession(base);
-    response = await fetch(`${base}/run`, {
+    response = await fetch(`${base}/run_sse`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         appName: APP_NAME,
         userId: USER_ID,
         sessionId,
+        streaming: false,
         newMessage: {
           role: 'user',
           parts: [
@@ -243,7 +301,7 @@ export async function askAgent(message: string, images: string[] = []): Promise<
     throw new Error(`The backend returned an error (HTTP ${response.status}).`);
   }
 
-  const events = (await response.json()) as AdkEvent[];
+  const events = await readAgentEvents(response, onProgress);
 
   let assessment: Assessment | null = null;
   for (const event of events) {
