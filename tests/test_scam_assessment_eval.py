@@ -16,6 +16,7 @@ def test_scam_assessment_cases_have_valid_reviewed_labels() -> None:
         Path(__file__).resolve().parents[1]
         / "agents"
         / "eval"
+        / "datasets"
         / "scam_assessment_cases.csv"
     )
     with dataset_path.open(newline="", encoding="utf-8") as handle:

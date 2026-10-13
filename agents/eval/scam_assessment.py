@@ -20,7 +20,7 @@ from agents.tools.agents.coordinator_agents.agent import (
 )
 from agents.tools.agents.message_agents.agent import message_agent
 
-_DATASET_PATH = Path(__file__).with_name("scam_assessment_cases.csv")
+_DATASET_PATH = Path(__file__).parent / "datasets" / "scam_assessment_cases.csv"
 _DEFAULT_OUTPUT = Path(".artifacts/scam-assessment-report.json")
 _RISK_LEVELS = {"low", "moderate", "high", "critical", "insufficient_information"}
 _INDICATOR_TYPES = {
