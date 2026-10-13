@@ -120,6 +120,10 @@ _URL_ANALYSIS_CUES = (
     "look up this domain",
     "check the reputation",
     "reputation of this domain",
+    "is this a suspicious link",
+    "is this link suspicious",
+    "is this a suspicious url",
+    "is this url suspicious",
 )
 _FEATURE_VECTOR_CUES = (
     "feature vector",
@@ -328,7 +332,11 @@ def route_request_to_agent(
     """Choose a specialist directly, without an LLM orchestration layer."""
     if attachment_present:
         intent = (user_request or request).casefold()
-        if any(cue in intent for cue in _URL_ANALYSIS_CUES):
+        if (
+            _URL_PATTERN.search(intent)
+            or _IP_PATTERN.search(intent)
+            or any(cue in intent for cue in _URL_ANALYSIS_CUES)
+        ):
             return "url_check_agent"
         refers_to_attachment = any(
             term in intent for term in ("screenshot", "image", "photo", "attachment")
@@ -346,12 +354,12 @@ def route_request_to_agent(
     if immediate_safety_notice(request):
         return "message_agent"
     normalized = request.casefold()
-    if should_route_to_retrieval(request):
-        return "retrieval_agent"
     if _URL_PATTERN.search(normalized) or _IP_PATTERN.search(normalized) or any(
         cue in normalized for cue in _URL_ANALYSIS_CUES
     ):
         return "url_check_agent"
+    if should_route_to_retrieval(request):
+        return "retrieval_agent"
     if any(cue in normalized for cue in _FEATURE_VECTOR_CUES):
         return "file_classifier_agent"
     return "message_agent"
