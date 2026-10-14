@@ -79,6 +79,7 @@ _CYBER_KNOWLEDGE_TERMS = (
     "security risk",
     "work laptop",
 )
+_CACHED_FOLLOWUP_DELAY_SECONDS = 0.7
 _ANALYSIS_CUES = (
     "analyze this",
     "analyse this",
@@ -110,7 +111,11 @@ _URL_ANALYSIS_CUES = (
     "check this url",
     "check the url",
     "malicious link",
+    "is this link malicious",
+    "is this url malicious",
+    "is this domain malicious",
     "is this link safe",
+    "is this url safe",
     "analyze this url",
     "analyse this url",
     "url reputation",
@@ -558,10 +563,20 @@ class RequestRouter(Agent):
                 ),
                 turn_complete=False,
             )
-        elif not _cached_followup_response(
+        elif _cached_followup_response(
             user_request,
             ctx.session.state.get("cached_followups", []),
         ):
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="Got it. One moment.")],
+                ),
+                turn_complete=False,
+            )
+        else:
             yield Event(
                 author=self.name,
                 invocation_id=ctx.invocation_id,
@@ -598,6 +613,7 @@ class RequestRouter(Agent):
             ctx.session.state.get("cached_followups", []),
         )
         if cached_response:
+            await asyncio.sleep(_CACHED_FOLLOWUP_DELAY_SECONDS)
             yield Event(
                 author=self.name,
                 invocation_id=ctx.invocation_id,
@@ -650,8 +666,18 @@ class RequestRouter(Agent):
             )
 
         initial_report = ""
-        event_stream = target.run_async(ctx).__aiter__()
-        next_event_task = asyncio.create_task(anext(event_stream))
+        event_queue: asyncio.Queue[Event | None] = asyncio.Queue()
+
+        async def read_target_stream() -> None:
+            try:
+                async with Aclosing(target.run_async(ctx)) as events:
+                    async for event in events:
+                        await event_queue.put(event)
+            finally:
+                await event_queue.put(None)
+
+        stream_task = asyncio.create_task(read_target_stream())
+        next_event_task = asyncio.create_task(event_queue.get())
         buffered_events = []
 
         def capture_report(event: Event) -> None:
@@ -702,17 +728,17 @@ class RequestRouter(Agent):
                         yield buffered_event
 
                 if next_event_task in done:
-                    try:
-                        event = next_event_task.result()
-                    except StopAsyncIteration:
+                    event = next_event_task.result()
+                    if event is None:
                         next_event_task = None
+                        await stream_task
                         continue
                     capture_report(event)
                     if triage_task is not None:
                         buffered_events.append(event)
                     else:
                         yield event
-                    next_event_task = asyncio.create_task(anext(event_stream))
+                    next_event_task = asyncio.create_task(event_queue.get())
 
             if triage_task is not None:
                 try:
@@ -738,14 +764,13 @@ class RequestRouter(Agent):
         finally:
             pending_tasks = [
                 task
-                for task in (next_event_task, triage_task)
+                for task in (next_event_task, triage_task, stream_task)
                 if task is not None and not task.done()
             ]
             for task in pending_tasks:
                 task.cancel()
             if pending_tasks:
                 await asyncio.gather(*pending_tasks, return_exceptions=True)
-            await event_stream.aclose()
 
         final_report = initial_report
         if requires_coordinator_followup(target_name):

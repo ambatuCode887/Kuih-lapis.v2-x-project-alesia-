@@ -61,6 +61,23 @@ def test_scam_assessment_cases_have_valid_reviewed_labels() -> None:
         assert case["review_notes"].strip()
 
 
+def test_message_assessment_prompt_preserves_image_uncertainty_and_weak_cues() -> None:
+    prompt_path = (
+        Path(__file__).resolve().parents[1]
+        / "agents"
+        / "tools"
+        / "agents"
+        / "message_agents"
+        / "prompt.md"
+    )
+    prompt = prompt_path.read_text(encoding="utf-8")
+
+    assert "Do not treat incomplete or sparse extracted text from an image as evidence that it is safe" in prompt
+    assert "Treat requests for deposits, delivery/processing fees, off-platform payment" in prompt
+    assert "Use `moderate` (25-49) when such a cue is plausible but not conclusive" in prompt
+    assert "Use `low` only when the supplied evidence is complete enough to assess" in prompt
+
+
 def test_reviewed_case_loader_rejects_draft_cases(tmp_path) -> None:
     dataset = tmp_path / "cases.csv"
     dataset.write_text(

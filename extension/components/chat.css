@@ -383,6 +383,25 @@ a:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.agent-trace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 4px 2px 0;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agent-trace-label {
+  font-weight: 700;
+}
+
+.agent-trace-names {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
 .reply {
   max-width: 100%;
   overflow-wrap: anywhere;

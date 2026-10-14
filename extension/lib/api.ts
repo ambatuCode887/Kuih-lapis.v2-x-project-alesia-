@@ -20,6 +20,8 @@ export interface AgentReply {
   /** The final, user-facing answer. */
   text: string;
   assessment: Assessment | null;
+  /** ADK event authors observed during this response, in first-seen order. */
+  agents?: string[];
 }
 
 interface AdkPart {
@@ -48,6 +50,7 @@ function eventText(event: AdkEvent): string {
 async function readAgentEvents(
   response: Response,
   onProgress?: (text: string) => void,
+  onAgent?: (author: string) => void,
 ): Promise<AdkEvent[]> {
   const reader = response.body?.getReader();
   if (!reader) throw new Error('The backend did not return a response stream.');
@@ -74,6 +77,7 @@ async function readAgentEvents(
 
     const event = payload as AdkEvent;
     events.push(event);
+    if (event.author) onAgent?.(event.author);
     if (event.author === 'root_agent' && event.turnComplete === false) {
       const progress = eventText(event);
       if (progress) onProgress?.(progress);
@@ -259,6 +263,7 @@ export async function askAgent(
   message: string,
   images: string[] = [],
   onProgress?: (text: string) => void,
+  onAgent?: (author: string) => void,
 ): Promise<AgentReply> {
   if (!USE_BACKEND) return sampleReply(message, images);
 
@@ -301,13 +306,31 @@ export async function askAgent(
     throw new Error(`The backend returned an error (HTTP ${response.status}).`);
   }
 
-  const events = await readAgentEvents(response, onProgress);
+  const events = await readAgentEvents(response, onProgress, onAgent);
 
   let assessment: Assessment | null = null;
   for (const event of events) {
     if (event.author && ASSESSMENT_AUTHORS.has(event.author)) {
       assessment = parseAssessment(eventText(event)) ?? assessment;
     }
+  }
+  if (
+    !assessment &&
+    events.some(
+      (event) => event.author && ASSESSMENT_AUTHORS.has(event.author),
+    )
+  ) {
+    assessment = {
+      risk_score: null,
+      risk_level: 'insufficient_information',
+      confidence: 0,
+      indicators: [],
+      assessment:
+        'The specialist responded without a readable structured assessment. Treat the result as unverified.',
+      recommended_actions: [
+        'Verify the link or message through the service’s official channel before acting.',
+      ],
+    };
   }
 
   // The root agent writes the final answer, so take its last text event.
@@ -318,6 +341,13 @@ export async function askAgent(
   const text = lastAnswer
     ? eventText(lastAnswer)
     : 'The assistant did not return an answer.';
+  const agents = [
+    ...new Set(
+      events
+        .map((event) => event.author)
+        .filter((author): author is string => Boolean(author)),
+    ),
+  ];
 
-  return { text, assessment };
+  return { text, assessment, agents };
 }
