@@ -3,6 +3,7 @@ from pathlib import Path
 from google.adk.agents.llm_agent import Agent
 
 from agents.config import agent_model
+from agents.tools.agents.message_agents.attachments import isolate_current_turn
 from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
 
 
@@ -21,5 +22,6 @@ def verification_agent() -> Agent:
 		instruction=_PROMPT.read_text(encoding="utf-8"),
 		tools=[retrieve_knowledge],
 		mode="single_turn",
+		before_model_callback=isolate_current_turn,
 	)
 

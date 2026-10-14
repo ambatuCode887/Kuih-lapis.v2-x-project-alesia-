@@ -72,7 +72,7 @@ def test_message_assessment_prompt_preserves_image_uncertainty_and_weak_cues() -
     )
     prompt = prompt_path.read_text(encoding="utf-8")
 
-    assert "Do not treat incomplete or sparse extracted text from an image as evidence that it is safe" in prompt
+    assert "Do not treat incomplete or sparse extracted text from an image or PDF as evidence that it is safe" in prompt
     assert "Treat requests for deposits, delivery/processing fees, off-platform payment" in prompt
     assert "Use `moderate` (25-49) when such a cue is plausible but not conclusive" in prompt
     assert "Use `low` only when the supplied evidence is complete enough to assess" in prompt

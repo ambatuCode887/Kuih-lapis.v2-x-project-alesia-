@@ -5,6 +5,7 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 
 from agents.config import agent_model, required_env
+from agents.tools.agents.message_agents.attachments import isolate_current_turn
 
 PROMPT_PATH = Path(__file__).with_name("prompt.md")
 
@@ -38,4 +39,5 @@ def url_check_agent() -> Agent:
         instruction=PROMPT_PATH.read_text(encoding="utf-8"),
         tools=[virustotal_toolset()],
         mode="single_turn",
+        before_model_callback=isolate_current_turn,
     )

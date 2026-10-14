@@ -39,16 +39,24 @@ def has_attachment(content: types.Content | None) -> bool:
 def redact_historical_attachments(session, current_invocation_id: str) -> None:
     for event in getattr(session, "events", ()):
         if (
-            event.author != "user"
-            or event.invocation_id == current_invocation_id
+            event.invocation_id == current_invocation_id
             or event.content is None
         ):
             continue
         parts = event.content.parts or []
-        if not any(
-            getattr(part, "inline_data", None) or getattr(part, "file_data", None)
+        has_attachment_data = any(
+            getattr(part, "inline_data", None)
+            or getattr(part, "file_data", None)
+            or (
+                getattr(part, "text", None)
+                and (
+                    "[BEGIN UNTRUSTED ATTACHMENT DATA" in part.text
+                    or "[Extracted attachment text;" in part.text
+                )
+            )
             for part in parts
-        ):
+        )
+        if not has_attachment_data:
             continue
         event.content.parts = [
             part
@@ -56,8 +64,68 @@ def redact_historical_attachments(session, current_invocation_id: str) -> None:
             if not (
                 getattr(part, "inline_data", None)
                 or getattr(part, "file_data", None)
+                or (
+                    getattr(part, "text", None)
+                    and (
+                        "[BEGIN UNTRUSTED ATTACHMENT DATA" in part.text
+                        or "[Extracted attachment text;" in part.text
+                    )
+                )
             )
         ] + [types.Part(text="[Prior attachment omitted from model history.]")]
+
+
+def isolate_current_turn(
+    callback_context: CallbackContext,
+    llm_request: LlmRequest,
+) -> None:
+    latest_user_index = next(
+        (
+            index
+            for index in range(len(llm_request.contents) - 1, -1, -1)
+            if llm_request.contents[index].role == "user"
+            and any(
+                getattr(part, "text", None) is not None
+                or getattr(part, "inline_data", None) is not None
+                or getattr(part, "file_data", None) is not None
+                for part in llm_request.contents[index].parts or []
+            )
+        ),
+        None,
+    )
+    if latest_user_index is None:
+        return
+    if latest_user_index:
+        del llm_request.contents[:latest_user_index]
+    latest_user_content = llm_request.contents[0]
+
+    for content in llm_request.contents:
+        is_latest_user_content = content is latest_user_content
+        retained_parts = []
+        removed_attachment = False
+        for part in content.parts or []:
+            is_binary_attachment = bool(
+                getattr(part, "inline_data", None)
+                or getattr(part, "file_data", None)
+            )
+            text = getattr(part, "text", None)
+            is_historical_attachment_text = bool(
+                text
+                and not is_latest_user_content
+                and (
+                    "[BEGIN UNTRUSTED ATTACHMENT DATA" in text
+                    or "[Extracted attachment text;" in text
+                )
+            )
+            if is_binary_attachment or is_historical_attachment_text:
+                removed_attachment = True
+                continue
+            retained_parts.append(part)
+        if removed_attachment:
+            retained_parts.append(
+                types.Part(text="[Prior attachment omitted from model history.]")
+            )
+        content.parts = retained_parts
 
 
 def _ocr_image(image: Image.Image) -> str:
@@ -168,15 +236,14 @@ async def prepare_message_attachments(
         (content for content in reversed(llm_request.contents) if content.role == "user"),
         None,
     )
-    if user_content is None or not has_attachment(user_content):
-        return
-
-    invocation_context = callback_context.get_invocation_context()
-    prepared_content = await preprocess_message_content(
-        user_content,
-        invocation_context,
-    )
-    user_content.parts = prepared_content.parts
+    if user_content is not None and has_attachment(user_content):
+        invocation_context = callback_context.get_invocation_context()
+        prepared_content = await preprocess_message_content(
+            user_content,
+            invocation_context,
+        )
+        user_content.parts = prepared_content.parts
+    isolate_current_turn(callback_context, llm_request)
 
 
 async def preprocess_message_content(

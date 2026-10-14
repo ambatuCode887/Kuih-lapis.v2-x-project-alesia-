@@ -49,6 +49,8 @@ class RetrievalAgent(BaseAgent):
             part.text
             for part in (content.parts if content else [])
             if getattr(part, "text", None)
+            and "[BEGIN UNTRUSTED ATTACHMENT DATA" not in part.text
+            and "[Extracted attachment text;" not in part.text
         ).strip()
 
         followups = []

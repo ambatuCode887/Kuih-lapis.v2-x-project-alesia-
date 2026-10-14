@@ -57,6 +57,41 @@ def test_retrieve_knowledge_normalizes_null_score_threshold(monkeypatch) -> None
     assert captured["score_threshold"] is None
 
 
+def test_retrieve_knowledge_hides_local_paths_in_citations_and_metadata(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from agents.tools.functions.retrieve import credential_stuffing
+
+    local_path = (
+        r"C:\Users\Alice\Documents\project\private-source.csv"
+    )
+    hit = SimpleNamespace(
+        score=0.9,
+        payload={
+            "text": "Retrieved passage",
+            "source": local_path,
+            "chunk_index": 314,
+            "file_path": local_path,
+            "file_name": "private-source.csv",
+            "category": "security",
+        },
+    )
+    monkeypatch.setattr(credential_stuffing, "embed_text", lambda query: [0.1])
+    monkeypatch.setattr(
+        credential_stuffing,
+        "search",
+        lambda **kwargs: [hit],
+    )
+
+    result = credential_stuffing.retrieve_knowledge("account security")
+    retrieved = result["results"][0]
+
+    assert retrieved["source"] == "private-source.csv"
+    assert "file_path" not in retrieved["metadata"]
+    assert "Alice" not in str(retrieved)
+    assert retrieved["metadata"]["file_name"] == "private-source.csv"
+
+
 def test_source_grounding_requires_a_retrieved_citation() -> None:
     valid = _source_grounding_result(
         "Use MFA [data.md#1]", ["[data.md#1]"]
