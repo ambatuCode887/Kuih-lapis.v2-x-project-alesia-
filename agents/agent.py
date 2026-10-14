@@ -164,12 +164,20 @@ Do not decide whether a person is actually a scammer. A transfer request from a
 friend still merits independent verification, not an accusation.
 
 Return only a JSON object with exactly these keys:
-{"alert":"money_transfer","confidence":0.8}
+{"alert":"phishing_link","confidence":0.9,"summary":"The message pairs an unexpected delivery fee with a link."}
 The alert value must be exactly one of "money_transfer", "credential_sharing",
 "remote_access", "phishing_link", or "none". For no alert, use
-{"alert":"none","confidence":0.0}. Confidence must be a number from 0.0 to
-1.0. Do not include analysis or reasoning.
+{"alert":"none","confidence":0.0,"summary":"I don't see a clear urgent request in this message."}. Confidence must be a number from 0.0 to
+1.0. Summary must be one concise user-facing sentence explaining the key signal
+and, when relevant, a safe next step. Do not include private chain-of-thought.
 """.strip()
+_TRIAGE_SUMMARY_FALLBACKS = {
+    "money_transfer": "This request involves sending money to an unclear recipient.",
+    "credential_sharing": "This message asks for a password, passcode, or one-time code.",
+    "remote_access": "This message asks for remote access to your device.",
+    "phishing_link": "This message combines an unexpected fee or request with a link.",
+    "none": "I don't see a clear urgent request in this message yet.",
+}
 _TRIAGE_ALERT_MESSAGES = {
     "money_transfer": (
         "Pause before sending money. Independently confirm the request with the "
@@ -297,7 +305,7 @@ def immediate_safety_notice(request: str) -> str | None:
     return None
 
 
-def _parse_safety_triage(text: str) -> str | None:
+def _parse_safety_triage_result(text: str) -> tuple[str | None, str] | None:
     start = text.find("{")
     if start < 0:
         return None
@@ -310,7 +318,7 @@ def _parse_safety_triage(text: str) -> str | None:
     alert = decision.get("alert")
     confidence = decision.get("confidence")
     if (
-        alert not in _TRIAGE_CATEGORIES
+        alert not in _TRIAGE_CATEGORIES | {"none"}
         or isinstance(confidence, bool)
         or not isinstance(confidence, (int, float))
         or not 0 <= confidence <= 100
@@ -318,12 +326,19 @@ def _parse_safety_triage(text: str) -> str | None:
         return None
     if confidence <= 1:
         confidence *= 100
-    if confidence < 60:
-        return None
-    return alert
+    summary = decision.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        summary = _TRIAGE_SUMMARY_FALLBACKS[alert]
+    alert = alert if alert != "none" and confidence >= 60 else None
+    return alert, summary.strip()
+
+
+def _parse_safety_triage(text: str) -> str | None:
+    result = _parse_safety_triage_result(text)
+    return result[0] if result else None
 
 #here is the first respondant agent for safety triage u can change their LLM provider
-async def _run_safety_triage(request: str) -> str | None:
+async def _run_safety_triage(request: str) -> tuple[str | None, str] | None:
     provider = (env("LLM_PROVIDER", "ollama") or "ollama").strip().lower()
     if provider == "openrouter":
         model_name = env("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL)
@@ -351,7 +366,7 @@ async def _run_safety_triage(request: str) -> str | None:
     choices = response.choices or []
     if not choices:
         return None
-    return _parse_safety_triage(choices[0].message.content or "")
+    return _parse_safety_triage_result(choices[0].message.content or "")
 
 
 def route_request_to_agent(
@@ -543,6 +558,19 @@ class RequestRouter(Agent):
                 ),
                 turn_complete=False,
             )
+        elif not _cached_followup_response(
+            user_request,
+            ctx.session.state.get("cached_followups", []),
+        ):
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="Got it. I'm checking this now.")],
+                ),
+                turn_complete=False,
+            )
 
         if attachment_present:
             content = await preprocess_message_content(content, ctx)
@@ -653,11 +681,13 @@ class RequestRouter(Agent):
 
                 if triage_task is not None and triage_task in done:
                     try:
-                        alert = triage_task.result()
+                        triage = triage_task.result()
                     except Exception:
-                        alert = None
+                        triage = None
                     triage_task = None
-                    notice = _TRIAGE_ALERT_MESSAGES.get(alert)
+                    alert, summary = triage or (None, "")
+                    action = _TRIAGE_ALERT_MESSAGES.get(alert)
+                    notice = f"{summary} {action}".strip() if action else summary
                     if notice:
                         yield Event(
                             author=self.name,
@@ -686,11 +716,13 @@ class RequestRouter(Agent):
 
             if triage_task is not None:
                 try:
-                    alert = await triage_task
+                    triage = await triage_task
                 except Exception:
-                    alert = None
+                    triage = None
                 triage_task = None
-                notice = _TRIAGE_ALERT_MESSAGES.get(alert)
+                alert, summary = triage or (None, "")
+                action = _TRIAGE_ALERT_MESSAGES.get(alert)
+                notice = f"{summary} {action}".strip() if action else summary
                 if notice:
                     yield Event(
                         author=self.name,
