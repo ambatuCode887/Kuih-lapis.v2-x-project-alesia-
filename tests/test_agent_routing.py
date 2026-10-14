@@ -143,7 +143,10 @@ def test_safety_triage_uses_configured_ollama_model(monkeypatch) -> None:
             choices=[
                 SimpleNamespace(
                     message=SimpleNamespace(
-                        content='{"alert":"money_transfer","confidence":0.8}'
+                        content=(
+                            '{"alert":"money_transfer","confidence":0.8,'
+                            '"summary":"The recipient account is unclear."}'
+                        )
                     )
                 )
             ]
@@ -158,7 +161,10 @@ def test_safety_triage_uses_configured_ollama_model(monkeypatch) -> None:
     monkeypatch.setattr("agents.agent.env", lambda name, default=None: settings.get(name, default))
     monkeypatch.setattr("agents.agent.acompletion", fake_completion)
 
-    assert asyncio.run(_run_safety_triage("Should I transfer the money?")) == "money_transfer"
+    assert asyncio.run(_run_safety_triage("Should I transfer the money?")) == (
+        "money_transfer",
+        "The recipient account is unclear.",
+    )
     assert completion_args["model"] == "ollama_chat/qwen2.5:3b"
     assert completion_args["api_base"] == "http://localhost:11434"
     assert completion_args["response_format"] == {"type": "json_object"}
@@ -214,9 +220,34 @@ def test_root_emits_interim_safety_notice_before_specialist_analysis() -> None:
     assert "Pause before sending money" in text
 
 
+def test_root_acknowledges_text_request_before_model_work() -> None:
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="immediate-ack-test",
+        user_content=types.Content(
+            role="user",
+            parts=[types.Part(text="Is this delivery-fee email safe?")],
+        ),
+    )
+
+    async def first_event():
+        events = root_agent._run_async_impl(context)
+        try:
+            return await anext(events)
+        finally:
+            await events.aclose()
+
+    event = asyncio.run(first_event())
+    text = " ".join(part.text for part in event.content.parts)
+
+    assert event.author == "root_agent"
+    assert not event.turn_complete
+    assert text == "Got it. I'm checking this now."
+
+
 def test_semantic_triage_alert_precedes_delayed_specialist(monkeypatch) -> None:
     class DelayedMessageAgent(BaseAgent):
-        async def _run_async_impl(self, context):
+        async def run_async(self, context):
             await asyncio.sleep(0.05)
             yield Event(
                 author=self.name,
@@ -229,7 +260,7 @@ def test_semantic_triage_alert_precedes_delayed_specialist(monkeypatch) -> None:
             )
 
     async def classify_request(_request):
-        return "money_transfer"
+        return "money_transfer", "The recipient account is unclear."
 
     monkeypatch.setattr("agents.agent._run_safety_triage", classify_request)
     router = RequestRouter(
@@ -255,16 +286,20 @@ def test_semantic_triage_alert_precedes_delayed_specialist(monkeypatch) -> None:
         ),
     )
 
-    async def first_event():
+    async def first_two_events():
         events = router._run_async_impl(context)
         try:
-            return await anext(events)
+            return await anext(events), await anext(events)
         finally:
             await events.aclose()
 
-    event = asyncio.run(first_event())
+    acknowledgement, event = asyncio.run(first_two_events())
+    acknowledgement_text = " ".join(
+        part.text for part in acknowledgement.content.parts
+    )
     text = " ".join(part.text for part in event.content.parts)
 
+    assert acknowledgement_text == "Got it. I'm checking this now."
     assert event.author == "test_root"
     assert not event.turn_complete
     assert "Pause before sending money" in text
@@ -300,16 +335,19 @@ def test_url_check_status_precedes_url_agent_response() -> None:
         ),
     )
 
-    async def first_event():
+    async def first_two_events():
         events = router._run_async_impl(context)
         try:
-            return await anext(events)
+            return await anext(events), await anext(events)
         finally:
             await events.aclose()
 
-    event = asyncio.run(first_event())
+    acknowledgement, event = asyncio.run(first_two_events())
     text = " ".join(part.text for part in event.content.parts)
 
+    assert "Got it. I'm checking this now." in " ".join(
+        part.text for part in acknowledgement.content.parts
+    )
     assert event.author == "test_root"
     assert not event.turn_complete
     assert "checking this address's reputation now" in text
@@ -379,7 +417,7 @@ def test_router_passes_ocr_text_to_semantic_triage(monkeypatch) -> None:
 
     async def fake_triage(request):
         captured_requests.append(request)
-        return "money_transfer"
+        return "money_transfer", "The recipient account is unclear."
 
     monkeypatch.setattr("agents.agent.preprocess_message_content", fake_preprocess)
     monkeypatch.setattr("agents.agent._run_safety_triage", fake_triage)
