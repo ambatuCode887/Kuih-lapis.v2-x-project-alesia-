@@ -5,6 +5,7 @@ from google.adk.agents.llm_agent import Agent
 from agents.config import agent_model
 
 from agents.tools.functions.classify import classify_precomputed_features
+from agents.tools.agents.message_agents.attachments import isolate_current_turn
 
 
 _PROMPT = Path(__file__).parent / "prompt.md"
@@ -22,4 +23,5 @@ def file_classifier_agent() -> Agent:
 		instruction=_PROMPT.read_text(encoding="utf-8"),
 		tools=[classify_precomputed_features],
 		mode="single_turn",
+		before_model_callback=isolate_current_turn,
 	)

@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from pathlib import PureWindowsPath
 from typing import Any
 
 from agents.tools.functions.embeddings import embed_text
 from agents.tools.functions.qdrant_store import search
+
+
+def _public_source_label(source: Any) -> str:
+    if not isinstance(source, str):
+        return ""
+    return PureWindowsPath(source).name
 
 
 def retrieve_knowledge(
@@ -31,12 +38,13 @@ def retrieve_knowledge(
             {
                 "score": hit.score,
                 "text": payload.get("text", ""),
-                "source": payload.get("source", ""),
+                "source": _public_source_label(payload.get("source", "")),
                 "chunk_index": payload.get("chunk_index"),
                 "metadata": {
                     key: value
                     for key, value in payload.items()
                     if key not in {"text", "source", "chunk_index"}
+                    and not key.casefold().endswith("_path")
                 },
             }
         )
