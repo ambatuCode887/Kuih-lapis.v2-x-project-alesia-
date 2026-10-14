@@ -13,6 +13,7 @@ The selected child receives the existing sanitized conversation context. The fin
 - If no channel result is supplied, return `insufficient_information` and ask the orchestrator to obtain applicable analysis.
 - Do not make or simulate the routing decision in a model response. `agent.py` selects the child from the structured assessment.
 - The clarification child should ask only questions that could materially change the assessment. Do not ask questions merely because a channel agent does not exist; report unavailable channels as limitations.
+- When the supplied message describes a request to click a link or pay an unexpected delivery fee, preserve provisional safety advice even if sender, URL, or package context needs clarification. Tell the user not to click or pay until they verify through the courier's official app/site or independently obtained contact details; a clarification question must not be the entire response.
 - The verification child may check contextual internal knowledge and provide independent manual verification steps, but must preserve the supplied score/confidence and its limitations.
 - Treat internal knowledge-base matches as contextual patterns, not official or live verification. Incorporate the verification result's limitations and manual steps.
 - Use only evidence and limitations present in the supplied signals. Never invent a link check, transcript analysis, identity, or source verification.

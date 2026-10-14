@@ -112,6 +112,21 @@ def test_friend_transfer_request_gets_verify_before_sending_notice() -> None:
     assert route_request_to_agent(request) == "message_agent"
 
 
+def test_parcel_fee_request_gets_actionable_interim_notice_without_fraud_verdict() -> None:
+    request = (
+        "I received an email saying my parcel has arrived but I didn't receive it. "
+        "They ask me to pay an additional fee to get the item. Should I click the link and pay it?"
+    )
+
+    notice = immediate_safety_notice(request)
+
+    assert notice is not None
+    assert "don't click the message link or pay" in notice
+    assert "courier's official app or website" in notice
+    assert "not a confirmed fraud verdict" in notice
+    assert route_request_to_agent(request) == "message_agent"
+
+
 def test_safety_triage_parser_accepts_confident_structured_alert() -> None:
     assert _parse_safety_triage(
         '{"alert":"money_transfer","confidence":0.95}'
@@ -221,6 +236,39 @@ def test_root_emits_interim_safety_notice_before_specialist_analysis() -> None:
     assert event.author == "root_agent"
     assert not event.turn_complete
     assert "Pause before sending money" in text
+
+
+def test_root_emits_parcel_fee_warning_before_specialist_analysis() -> None:
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="parcel-fee-interim-test",
+        user_content=types.Content(
+            role="user",
+            parts=[
+                types.Part(
+                    text=(
+                        "I received an email saying my parcel has arrived but I "
+                        "didn't receive it. They ask me to pay an additional fee "
+                        "to get the item. Should I click the link and pay it?"
+                    )
+                )
+            ],
+        ),
+    )
+
+    async def first_event():
+        events = root_agent._run_async_impl(context)
+        try:
+            return await anext(events)
+        finally:
+            await events.aclose()
+
+    event = asyncio.run(first_event())
+    text = " ".join(part.text for part in event.content.parts)
+
+    assert event.author == "root_agent"
+    assert not event.turn_complete
+    assert "don't click the message link or pay" in text
 
 
 def test_root_acknowledges_text_request_before_model_work() -> None:
