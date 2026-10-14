@@ -11,7 +11,7 @@ import Markdown from "react-markdown";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource/ibm-plex-mono/400.css";
 import { askAgent, resetSession } from "@/lib/api";
-import { riskBand, type Assessment } from "@/lib/assessment";
+import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
 import { useTheme } from "@/lib/theme";
 import {
@@ -46,12 +46,23 @@ export interface Message {
   assessment?: Assessment;
   /** What the user asked us to check, shown back with findings marked. */
   sourceText?: string;
+  /** ADK event authors that participated in this response. */
+  agents?: string[];
   isError?: boolean;
 }
 
 const STORAGE_KEY = "chat-messages";
 // Written by the right-click menu in background.ts; consumed here.
 const PENDING_KEY = "pending-check";
+
+function normalizeMessages(messages: Message[]): Message[] {
+  return messages.map((message) => ({
+    ...message,
+    assessment: message.assessment
+      ? parseAssessment(JSON.stringify(message.assessment)) ?? undefined
+      : undefined,
+  }));
+}
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -109,6 +120,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeAgents, setActiveAgents] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const { theme, toggleTheme } = useTheme();
   // Design only: this just switches the listening look. Speech recognition is not wired up yet.
@@ -126,7 +138,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       const saved = result[STORAGE_KEY] as Message[] | undefined;
       // Drop the old welcome bubble that earlier versions saved.
       const history = saved?.filter((message) => message.id !== "welcome");
-      if (history?.length) setMessages(history);
+      if (history?.length) setMessages(normalizeMessages(history));
       setLoaded(true);
     });
 
@@ -135,7 +147,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       area: string,
     ) => {
       if (area === "local" && changes[STORAGE_KEY]?.newValue) {
-        setMessages(changes[STORAGE_KEY].newValue as Message[]);
+        setMessages(
+          normalizeMessages(changes[STORAGE_KEY].newValue as Message[]),
+        );
       }
     };
     browser.storage.onChanged.addListener(onChange);
@@ -192,41 +206,26 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     ]);
 
     const assistantId = crypto.randomUUID();
-    let hasProgress = false;
+    let participatingAgents: string[] = [];
+
+    function rememberAgent(author: string) {
+      if (participatingAgents.includes(author)) return;
+      participatingAgents = [...participatingAgents, author];
+      setActiveAgents([...participatingAgents]);
+    }
+
     try {
-      const reply = await askAgent(text, images, (progress) => {
-        hasProgress = true;
-        setMessages((current) => {
-          const existing = current.some(
-            (message) => message.id === assistantId,
-          );
-          const progressMessage: Message = {
-            id: assistantId,
-            role: "assistant",
-            text: progress,
-          };
-          return existing
-            ? current.map((message) =>
-                message.id === assistantId ? progressMessage : message,
-              )
-            : [...current, progressMessage];
-        });
-      });
+      const reply = await askAgent(text, images, undefined, rememberAgent);
       const finalMessage: Message = {
         id: assistantId,
         role: "assistant",
         text: reply.text,
         assessment: reply.assessment ?? undefined,
         sourceText: reply.assessment && text ? extractSource(text) : undefined,
+        agents: reply.agents?.length ? reply.agents : participatingAgents,
       };
-      setMessages((current) => {
-        if (hasProgress) {
-          return current.map((message) =>
-            message.id === assistantId ? finalMessage : message,
-          );
-        }
-        return [...current, finalMessage];
-      });
+      setMessages((current) => [...current, finalMessage]);
+      setActiveAgents([]);
     } catch (error) {
       const errorText =
         error instanceof Error ? error.message : "Something went wrong.";
@@ -234,16 +233,11 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
         id: assistantId,
         role: "assistant",
         text: errorText,
+        agents: participatingAgents,
         isError: true,
       };
-      setMessages((current) => {
-        if (hasProgress) {
-          return current.map((message) =>
-            message.id === assistantId ? errorMessage : message,
-          );
-        }
-        return [...current, errorMessage];
-      });
+      setMessages((current) => [...current, errorMessage]);
+      setActiveAgents([]);
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -525,8 +519,23 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                     <Markdown>{message.text}</Markdown>
                   </div>
                 )}
+                {message.role === "assistant" && !!message.agents?.length && (
+                  <div className="agent-trace" aria-label="Agents that participated">
+                    <span className="agent-trace-label">Agents</span>
+                    <span className="agent-trace-names">
+                      {message.agents.join(" → ")}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
+
+            {loading && activeAgents.length > 0 && (
+              <div className="agent-trace" aria-label="Agents working on this response">
+                <span className="agent-trace-label">Agents</span>
+                <span className="agent-trace-names">{activeAgents.join(" → ")}</span>
+              </div>
+            )}
 
             {loading && (
               <div className="working" role="status">

@@ -28,6 +28,26 @@ export interface Assessment {
 
 const FENCED_JSON = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/gi;
 
+function displayText(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(displayText).filter(Boolean).join(', ');
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, item]) => {
+        const text = displayText(item);
+        return text ? `${key}: ${text}` : undefined;
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
+  return undefined;
+}
+
 function asAssessment(value: unknown): Assessment | null {
   if (
     value &&
@@ -35,7 +55,50 @@ function asAssessment(value: unknown): Assessment | null {
     'confidence' in value &&
     'risk_level' in value
   ) {
-    return value as Assessment;
+    const raw = value as Record<string, unknown>;
+    const riskLevels: RiskLevel[] = [
+      'low',
+      'moderate',
+      'high',
+      'critical',
+      'insufficient_information',
+    ];
+    const rawIndicators = Array.isArray(raw.indicators) ? raw.indicators : [];
+    const indicators: Indicator[] = rawIndicators.flatMap((item) => {
+      if (!item || typeof item !== 'object') return [];
+      const fields = item as Record<string, unknown>;
+      return [{
+        type: displayText(fields.type),
+        indicator: displayText(fields.indicator),
+        verdict: displayText(fields.verdict),
+        evidence: displayText(fields.evidence),
+        reason: displayText(fields.reason),
+        report_link:
+          typeof fields.report_link === 'string' ? fields.report_link : undefined,
+      }];
+    });
+
+    return {
+      risk_score:
+        typeof raw.risk_score === 'number' && Number.isFinite(raw.risk_score)
+          ? raw.risk_score
+          : null,
+      risk_level: riskLevels.includes(raw.risk_level as RiskLevel)
+        ? (raw.risk_level as RiskLevel)
+        : 'insufficient_information',
+      confidence:
+        typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
+          ? raw.confidence
+          : 0,
+      indicators,
+      assessment: displayText(raw.assessment),
+      recommended_actions: Array.isArray(raw.recommended_actions)
+        ? raw.recommended_actions.map(displayText).filter((item): item is string => Boolean(item))
+        : undefined,
+      limitations: Array.isArray(raw.limitations)
+        ? raw.limitations.map(displayText).filter((item): item is string => Boolean(item))
+        : undefined,
+    };
   }
   return null;
 }

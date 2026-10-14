@@ -377,6 +377,11 @@ def test_attachment_routing_uses_typed_intent_and_ocr_evidence() -> None:
         user_request="Check the link in this screenshot with VirusTotal.",
     ) == "url_check_agent"
     assert route_request_to_agent(
+        ocr_evidence,
+        attachment_present=True,
+        user_request="Is this link malicious?",
+    ) == "url_check_agent"
+    assert route_request_to_agent(
         "Extracted screenshot text: phishing is a type of social engineering",
         attachment_present=True,
         user_request="Can you explain the phishing advice shown here?",
@@ -665,7 +670,13 @@ def test_followup_suggestions_use_only_cached_questions() -> None:
     assert "instant cached answer" in suggestions
 
 
-def test_root_answers_cached_followup_without_running_specialists() -> None:
+def test_root_delays_cached_followup_without_running_specialists(monkeypatch) -> None:
+    delays = []
+
+    async def record_delay(seconds):
+        delays.append(seconds)
+
+    monkeypatch.setattr("agents.agent.asyncio.sleep", record_delay)
     context = SimpleNamespace(
         user_content=types.Content(
             role="user",
@@ -691,11 +702,15 @@ def test_root_answers_cached_followup_without_running_specialists() -> None:
 
     events = asyncio.run(collect_events())
 
-    assert len(events) == 1
+    assert delays == [0.7]
+    assert len(events) == 2
     assert events[0].author == "root_agent"
-    assert events[0].is_final_response()
-    assert "MFA uses more than one verification factor." in events[0].content.parts[0].text
-    assert "Source: security.csv, chunk 12." in events[0].content.parts[0].text
+    assert not events[0].turn_complete
+    assert "One moment" in events[0].content.parts[0].text
+    assert events[1].author == "root_agent"
+    assert events[1].is_final_response()
+    assert "MFA uses more than one verification factor." in events[1].content.parts[0].text
+    assert "Source: security.csv, chunk 12." in events[1].content.parts[0].text
 
 
 def test_message_agent_detects_adk_inline_uploads() -> None:
