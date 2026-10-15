@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.events.event import Event
+from google.adk.runners import Runner
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 from PIL import Image
@@ -17,6 +18,7 @@ from agents.agent import (
     RequestRouter,
     _append_specialist_report,
     _attachment_prompt_injection_notice,
+    _fallback_root_response,
     _restore_root_user_request,
     _cached_followup_response,
     _followup_suggestions,
@@ -294,6 +296,123 @@ def test_root_acknowledges_text_request_before_model_work() -> None:
     assert event.author == "root_agent"
     assert not event.turn_complete
     assert text == "Got it. I'm checking this now."
+
+
+def test_root_answers_greeting_without_scam_assessment() -> None:
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="greeting-test",
+        user_content=types.Content(
+            role="user",
+            parts=[types.Part(text="hi")],
+        ),
+    )
+
+    async def first_event():
+        events = root_agent._run_async_impl(context)
+        try:
+            return await anext(events)
+        finally:
+            await events.aclose()
+
+    event = asyncio.run(first_event())
+
+    assert event.author == "root_agent"
+    assert event.is_final_response()
+    assert "What cybersecurity question" in event.content.parts[0].text
+
+
+def test_root_falls_back_when_model_returns_no_text(monkeypatch) -> None:
+    class RetrievalStub(BaseAgent):
+        async def run_async(self, context):
+            yield Event(
+                author=self.name,
+                invocation_id=context.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="Retrieved evidence: MFA adds a second factor.")],
+                ),
+                turn_complete=True,
+            )
+
+    async def empty_root_response(self, context):
+        if False:
+            yield None
+
+    monkeypatch.setattr("agents.agent.Agent._run_async_impl", empty_root_response)
+    router = RequestRouter(
+        model=root_agent.model,
+        name="root_agent",
+        instruction="test",
+        description="test router",
+        sub_agents=[RetrievalStub(name="retrieval_agent")],
+    )
+    context = SimpleNamespace(
+        session=SimpleNamespace(state={}, events=[]),
+        invocation_id="empty-root-response-test",
+        user_content=types.Content(
+            role="user",
+            parts=[types.Part(text="How does MFA help secure my account?")],
+        ),
+    )
+
+    async def collect_events():
+        return [event async for event in router._run_async_impl(context)]
+
+    events = asyncio.run(collect_events())
+    final_events = [
+        event
+        for event in events
+        if event.author == "root_agent" and event.is_final_response()
+    ]
+
+    assert final_events
+    assert "Retrieved evidence" in final_events[-1].content.parts[0].text
+
+
+def test_message_fallback_uses_structured_assessment_and_actions() -> None:
+    report = (
+        '{"assessment":"The unexpected fee request is suspicious.", '
+        '"recommended_actions":["Verify through the courier’s official website."], '
+        '"confidence":75}'
+    )
+
+    response = _fallback_root_response("message_agent", report)
+
+    assert "unexpected fee request is suspicious" in response
+    assert "Verify through the courier’s official website." in response
+
+
+def test_specialists_cannot_capture_the_next_turn() -> None:
+    pending = list(root_agent.sub_agents)
+    while pending:
+        agent = pending.pop()
+        if agent.name in {"root_agent", "retrieval_agent"}:
+            pending.extend(getattr(agent, "sub_agents", []))
+            continue
+        assert agent.disallow_transfer_to_parent, agent.name
+        pending.extend(agent.sub_agents)
+
+
+def test_next_turn_starts_at_root_after_sub_agent_replied_last() -> None:
+    runner = Runner.__new__(Runner)
+    runner.resumability_config = None
+    session = SimpleNamespace(
+        events=[
+            Event(
+                author="user",
+                invocation_id="prior",
+                content=types.Content(role="user", parts=[types.Part(text="hi")]),
+            ),
+            Event(
+                author="clarification_agent",
+                invocation_id="prior",
+                content=types.Content(role="model", parts=[types.Part(text="{}")]),
+            ),
+        ]
+    )
+
+    assert runner._find_agent_to_run(session, root_agent) is root_agent
 
 
 def test_semantic_triage_alert_precedes_delayed_specialist(monkeypatch) -> None:
@@ -1146,6 +1265,32 @@ def test_current_turn_isolation_preserves_same_turn_tool_results() -> None:
 
     assert request.contents == [current_user, tool_result]
 
+
+def test_current_turn_isolation_keeps_user_request_before_specialist_context() -> None:
+    from agents.tools.agents.message_agents.attachments import isolate_current_turn
+
+    question = types.Content(
+        role="user",
+        parts=[types.Part(text="how do i strengthen my password?")],
+    )
+    specialist_context = types.Content(
+        role="user",
+        parts=[
+            types.Part(text="For context:"),
+            types.Part(text="[retrieval_agent] said: use a password manager"),
+        ],
+    )
+    request = LlmRequest(
+        contents=[
+            types.Content(role="user", parts=[types.Part(text="Old injection")]),
+            question,
+            specialist_context,
+        ]
+    )
+
+    isolate_current_turn(None, request)
+
+    assert request.contents == [question, specialist_context]
 
 def test_assessment_prompts_reject_unverified_authority_and_score_changes() -> None:
     prompt = Path("agents/tools/agents/message_agents/prompt.md").read_text(

@@ -20,5 +20,7 @@ def message_agent() -> Agent:
 		),
 		instruction=_PROMPT.read_text(encoding="utf-8"),
 		mode="single_turn",
+		disallow_transfer_to_parent=True,
+		disallow_transfer_to_peers=True,
 		before_model_callback=prepare_message_attachments,
 	)

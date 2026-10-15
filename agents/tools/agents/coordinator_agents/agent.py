@@ -106,6 +106,8 @@ def coordinator_agent() -> Agent:
 			"Routes assessments below the confidence threshold or with missing "
 			"evidence to clarification; otherwise routes to verification."
 		),
+		disallow_transfer_to_parent=True,
+		disallow_transfer_to_peers=True,
 		sub_agents=[clarification_agent(), verification_agent()],
 	)
 
