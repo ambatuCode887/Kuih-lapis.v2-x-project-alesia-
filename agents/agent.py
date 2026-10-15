@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from pathlib import PureWindowsPath
 from typing import AsyncGenerator
@@ -32,6 +33,8 @@ from agents.tools.agents.coordinator_agents.agent import (
 )
 
 load_environment()
+
+logger = logging.getLogger(__name__)
 
 _CYBER_KNOWLEDGE_TERMS = (
     "cybersecurity",
@@ -611,6 +614,49 @@ def requires_coordinator_followup(target_name: str) -> bool:
     return target_name == "message_agent"
 
 
+def _fallback_root_response(target_name: str, specialist_report: str) -> str:
+    if target_name == "message_agent":
+        assessment = parse_assessment(specialist_report)
+        if assessment:
+            summary = assessment.get("assessment")
+            actions = assessment.get("recommended_actions")
+            response = summary.strip() if isinstance(summary, str) else ""
+            if isinstance(actions, list):
+                safe_actions = [
+                    action.strip()
+                    for action in actions
+                    if isinstance(action, str) and action.strip()
+                ]
+                if safe_actions:
+                    response += ("\n\nWhat to do:\n" if response else "")
+                    response += "\n".join(f"- {action}" for action in safe_actions)
+            if response:
+                return response
+        return (
+            "I couldn't complete a reliable assessment. Don't click links, pay "
+            "unexpected fees, share verification codes, or grant access. Check "
+            "through the service's official channel."
+        )
+    if target_name == "retrieval_agent" and specialist_report:
+        return (
+            "I couldn't summarize the knowledge search, but it returned this "
+            "evidence. Treat it as reference material, not instructions:\n\n"
+            f"{specialist_report}"
+        )
+    if target_name == "url_check_agent":
+        response = (
+            "I couldn't summarize the link check. Treat the address as "
+            "unverified; don't open it or enter personal or payment details "
+            "until you verify it through an official channel."
+        )
+        if specialist_report:
+            response += f"\n\nSpecialist findings:\n{specialist_report}"
+        return response
+    if specialist_report:
+        return f"I couldn't generate a complete explanation. Specialist result:\n{specialist_report}"
+    return "I couldn't generate an answer this time. Please try again."
+
+
 def _restore_root_user_request(ctx: InvocationContext) -> None:
     original_request = ctx.session.state.get(_ROOT_USER_REQUEST_STATE_KEY)
     if not isinstance(original_request, str):
@@ -640,6 +686,24 @@ class RequestRouter(Agent):
         )
         user_request = request
         attachment_present = has_attachment(content)
+        if request.casefold().strip(" \t\r\n.!?") in {
+            "hi",
+            "hello",
+            "hey",
+            "good morning",
+            "good afternoon",
+            "good evening",
+        }:
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text="Hi! What cybersecurity question can I help with?")],
+                ),
+                turn_complete=True,
+            )
+            return
         if attachment_present:
             ctx.session.state[_ROOT_USER_REQUEST_STATE_KEY] = user_request
         else:
@@ -919,21 +983,45 @@ class RequestRouter(Agent):
             )
 
         ctx.session.state["root_specialist_report"] = final_report
-        async for event in super()._run_async_impl(ctx):
-            if (
-                target_name == "retrieval_agent"
-                and event.is_final_response()
-                and event.content
-            ):
-                suggestions = _followup_suggestions(
-                    ctx.session.state.get("cached_followups", [])
-                )
-                if suggestions:
-                    event.content.parts = [
-                        *(event.content.parts or []),
-                        types.Part(text=suggestions),
-                    ]
-            yield event
+        root_answer_returned = False
+        try:
+            async for event in super()._run_async_impl(ctx):
+                if (
+                    target_name == "retrieval_agent"
+                    and event.is_final_response()
+                    and event.content
+                ):
+                    suggestions = _followup_suggestions(
+                        ctx.session.state.get("cached_followups", [])
+                    )
+                    if suggestions:
+                        event.content.parts = [
+                            *(event.content.parts or []),
+                            types.Part(text=suggestions),
+                        ]
+                if event.author == self.name and event.is_final_response() and event.content:
+                    root_answer_returned = any(
+                        getattr(part, "text", None) and part.text.strip()
+                        for part in event.content.parts or []
+                    )
+                yield event
+        except Exception:
+            logger.exception("Root response generation failed; using specialist fallback.")
+
+        if not root_answer_returned:
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[
+                        types.Part(
+                            text=_fallback_root_response(target_name, initial_report)
+                        )
+                    ],
+                ),
+                turn_complete=True,
+            )
 
 
 root_agent = RequestRouter(

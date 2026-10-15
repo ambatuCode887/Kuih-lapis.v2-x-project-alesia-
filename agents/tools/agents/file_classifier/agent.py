@@ -23,5 +23,7 @@ def file_classifier_agent() -> Agent:
 		instruction=_PROMPT.read_text(encoding="utf-8"),
 		tools=[classify_precomputed_features],
 		mode="single_turn",
+		disallow_transfer_to_parent=True,
+		disallow_transfer_to_peers=True,
 		before_model_callback=isolate_current_turn,
 	)

@@ -39,5 +39,7 @@ def url_check_agent() -> Agent:
         instruction=PROMPT_PATH.read_text(encoding="utf-8"),
         tools=[virustotal_toolset()],
         mode="single_turn",
+        disallow_transfer_to_parent=True,
+        disallow_transfer_to_peers=True,
         before_model_callback=isolate_current_turn,
     )

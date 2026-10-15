@@ -79,17 +79,25 @@ def isolate_current_turn(
     callback_context: CallbackContext,
     llm_request: LlmRequest,
 ) -> None:
+    def is_user_turn(content: types.Content) -> bool:
+        parts = content.parts or []
+        if content.role != "user" or not parts:
+            return False
+        # ADK presents other agents' output as user-role "For context:" messages.
+        if (parts[0].text or "").startswith("For context:"):
+            return False
+        return any(
+            getattr(part, "text", None) is not None
+            or getattr(part, "inline_data", None) is not None
+            or getattr(part, "file_data", None) is not None
+            for part in parts
+        )
+
     latest_user_index = next(
         (
             index
             for index in range(len(llm_request.contents) - 1, -1, -1)
-            if llm_request.contents[index].role == "user"
-            and any(
-                getattr(part, "text", None) is not None
-                or getattr(part, "inline_data", None) is not None
-                or getattr(part, "file_data", None) is not None
-                for part in llm_request.contents[index].parts or []
-            )
+            if is_user_turn(llm_request.contents[index])
         ),
         None,
     )

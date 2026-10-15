@@ -22,6 +22,8 @@ def verification_agent() -> Agent:
 		instruction=_PROMPT.read_text(encoding="utf-8"),
 		tools=[retrieve_knowledge],
 		mode="single_turn",
+		disallow_transfer_to_parent=True,
+		disallow_transfer_to_peers=True,
 		before_model_callback=isolate_current_turn,
 	)
 
