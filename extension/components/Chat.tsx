@@ -121,6 +121,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
+  const [status, setStatus] = useState("");
   const [loaded, setLoaded] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -194,6 +195,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
 
     loadingRef.current = true;
     setLoading(true);
+    setStatus("");
     const controller = new AbortController();
     abortRef.current = controller;
     setMessages((current) => [
@@ -219,7 +221,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       const reply = await askAgent(
         text,
         images,
-        undefined,
+        setStatus,
         rememberAgent,
         controller.signal,
       );
@@ -259,6 +261,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       abortRef.current = null;
       loadingRef.current = false;
       setLoading(false);
+      setStatus("");
     }
   }
 
@@ -567,7 +570,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                   <i />
                   <i />
                 </span>
-                Checking…
+                {status || "Analyzing context…"}
               </div>
             )}
             <div ref={bottomRef} />

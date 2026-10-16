@@ -32,6 +32,7 @@ interface AdkEvent {
   author?: string;
   content?: { parts?: AdkPart[] };
   turnComplete?: boolean;
+  customMetadata?: { status?: string };
 }
 
 async function backendUrl(): Promise<string> {
@@ -53,7 +54,7 @@ export function isAbortError(error: unknown): boolean {
 
 async function readAgentEvents(
   response: Response,
-  onProgress?: (text: string) => void,
+  onStatus?: (status: string) => void,
   onAgent?: (author: string) => void,
 ): Promise<AdkEvent[]> {
   const reader = response.body?.getReader();
@@ -82,10 +83,8 @@ async function readAgentEvents(
     const event = payload as AdkEvent;
     events.push(event);
     if (event.author) onAgent?.(event.author);
-    if (event.author === 'root_agent' && event.turnComplete === false) {
-      const progress = eventText(event);
-      if (progress) onProgress?.(progress);
-    }
+    const status = event.customMetadata?.status;
+    if (status) onStatus?.(status);
   };
 
   try {
@@ -266,7 +265,7 @@ async function sampleReply(message: string, images: string[]): Promise<AgentRepl
 export async function askAgent(
   message: string,
   images: string[] = [],
-  onProgress?: (text: string) => void,
+  onStatus?: (status: string) => void,
   onAgent?: (author: string) => void,
   signal?: AbortSignal,
 ): Promise<AgentReply> {
@@ -313,7 +312,7 @@ export async function askAgent(
     throw new Error(`The backend returned an error (HTTP ${response.status}).`);
   }
 
-  const events = await readAgentEvents(response, onProgress, onAgent);
+  const events = await readAgentEvents(response, onStatus, onAgent);
 
   let assessment: Assessment | null = null;
   for (const event of events) {
