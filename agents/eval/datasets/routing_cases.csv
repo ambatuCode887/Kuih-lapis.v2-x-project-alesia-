@@ -20,6 +20,7 @@ retrieval-018,Why should I use a VPN on public Wi-Fi?,false,retrieval_agent
 retrieval-019,Is it dangerous to reuse the same password?,false,retrieval_agent
 retrieval-020,How can I make my work laptop safer?,false,retrieval_agent
 retrieval-021,Give me practical tips for protecting my phone from malware.,false,retrieval_agent
+retrieval-022,How do I create a transport order?,false,retrieval_agent
 manual-001,"My home Wi-Fi feels insecure. What should I change?",false,retrieval_agent
 manual-002,"I reused a password and now can’t log in. What should I do?",false,retrieval_agent
 manual-003,"What should I do after clicking a suspicious link?",false,retrieval_agent

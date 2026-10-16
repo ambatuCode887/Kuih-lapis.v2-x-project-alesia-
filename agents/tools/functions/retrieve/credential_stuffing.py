@@ -31,21 +31,33 @@ def retrieve_knowledge(
 
     vector = embed_text(query)
     hits = search(vector=vector, limit=limit, score_threshold=score_threshold)
-    results = []
-    for hit in hits:
-        payload = hit.payload or {}
-        results.append(
-            {
-                "score": hit.score,
-                "text": payload.get("text", ""),
-                "source": _public_source_label(payload.get("source", "")),
-                "chunk_index": payload.get("chunk_index"),
-                "metadata": {
-                    key: value
-                    for key, value in payload.items()
-                    if key not in {"text", "source", "chunk_index"}
-                    and not key.casefold().endswith("_path")
-                },
-            }
-        )
-    return {"query": query, "results": results}
+    return {"query": query, "results": [_hit_to_result(hit) for hit in hits]}
+
+
+def format_passage(index: int, result: dict[str, Any]) -> str:
+    score = result.get("score")
+    score_text = f"{score:.3f}" if isinstance(score, (int, float)) else "unknown"
+    category = (result.get("metadata") or {}).get("category")
+    category_text = f"; category={category}" if category else ""
+    return (
+        f"[{index}] source={result.get('source', '')}; "
+        f"chunk_index={result.get('chunk_index')}; "
+        f"score={score_text}{category_text}\n"
+        f"{result.get('text', '')}"
+    )
+
+
+def _hit_to_result(hit: Any) -> dict[str, Any]:
+    payload = hit.payload or {}
+    return {
+        "score": hit.score,
+        "text": payload.get("text", ""),
+        "source": _public_source_label(payload.get("source", "")),
+        "chunk_index": payload.get("chunk_index"),
+        "metadata": {
+            key: value
+            for key, value in payload.items()
+            if key not in {"text", "source", "chunk_index"}
+            and not key.casefold().endswith("_path")
+        },
+    }

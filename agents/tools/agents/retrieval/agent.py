@@ -7,7 +7,7 @@ from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
 
-from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
+from agents.tools.functions.retrieve.credential_stuffing import format_passage, retrieve_knowledge
 
 _QA_RECORD = re.compile(
     r"\s*Question:\s*(?P<question>.*?)\s*\nAnswer:\s*(?P<answer>.*?)\s*\Z",
@@ -63,23 +63,7 @@ class RetrievalAgent(BaseAgent):
             if not results:
                 report = "No relevant context was found in the knowledge base."
             else:
-                passages = []
-                for index, result in enumerate(results, start=1):
-                    score = result.get("score")
-                    score_text = (
-                        f"{score:.3f}"
-                        if isinstance(score, (int, float))
-                        else "unknown"
-                    )
-                    metadata = result.get("metadata") or {}
-                    category = metadata.get("category")
-                    category_text = f"; category={category}" if category else ""
-                    passages.append(
-                        f"[{index}] source={result.get('source', '')}; "
-                        f"chunk_index={result.get('chunk_index')}; "
-                        f"score={score_text}{category_text}\n"
-                        f"{result.get('text', '')}"
-                    )
+                passages = [format_passage(index, result) for index, result in enumerate(results, start=1)]
                 report = "Retrieved evidence:\n" + "\n\n".join(passages)
 
         yield Event(

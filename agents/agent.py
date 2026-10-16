@@ -142,6 +142,17 @@ _FEATURE_VECTOR_CUES = (
 )
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 _IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_QUESTION_START = re.compile(
+    r"^\s*(?:how|what|why|when|where|which|who|can|could|should|is|are|do|does|did|will|would)\b"
+)
+_ARTIFACT_REFERENCE = re.compile(
+    r"\b(?:this|these|those|message|text|sms|email|link|url|domain|file|attachment|"
+    r"screenshot|caller|website)\b"
+)
+_SITUATIONAL_RISK_TERMS = re.compile(
+    r"\b(?:transfer|pay|paid|payment|fee|fees|otp|gift cards?|send money|police|scammer)\b"
+)
+_MAX_KNOWLEDGE_QUESTION_WORDS = 40
 _TRIAGE_TIMEOUT_SECONDS = 30
 _TRIAGE_CATEGORIES = {
     "money_transfer",
@@ -223,6 +234,23 @@ def should_route_to_retrieval(request: str) -> bool:
     if any(cue in normalized for cue in _ANALYSIS_CUES):
         return False
     return any(term in normalized for term in _CYBER_KNOWLEDGE_TERMS)
+
+
+def is_knowledge_question(request: str) -> bool:
+    """Return whether a question-form request asks general knowledge, not analysis."""
+    normalized = request.casefold()
+    if (
+        not _QUESTION_START.match(normalized)
+        or len(normalized.split()) > _MAX_KNOWLEDGE_QUESTION_WORDS
+        or _URL_PATTERN.search(normalized)
+        or _IP_PATTERN.search(normalized)
+        or any(cue in normalized for cue in (*_ANALYSIS_CUES, *_URL_ANALYSIS_CUES))
+    ):
+        return False
+    return not (
+        _ARTIFACT_REFERENCE.search(normalized)
+        or _SITUATIONAL_RISK_TERMS.search(normalized)
+    )
 
 
 def immediate_safety_notice(request: str) -> str | None:
@@ -531,6 +559,8 @@ def route_request_to_agent(
         return "retrieval_agent"
     if any(cue in normalized for cue in _FEATURE_VECTOR_CUES):
         return "file_classifier_agent"
+    if is_knowledge_question(request):
+        return "retrieval_agent"
     return "message_agent"
 
 
