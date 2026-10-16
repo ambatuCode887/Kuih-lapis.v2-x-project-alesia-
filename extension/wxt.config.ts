@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'Cyber Assistant',
     description: 'Cybersecurity and scam-awareness assistant in your browser side panel.',
     // unlimitedStorage: pasted screenshots are kept in the saved chat history.
-    permissions: ['sidePanel', 'storage', 'unlimitedStorage', 'contextMenus'],
+    permissions: ['sidePanel', 'storage', 'unlimitedStorage', 'contextMenus', 'downloads'],
     // Lets the extension call the local ADK server (also skips CORS checks).
     host_permissions: ['http://127.0.0.1:8000/*', 'http://localhost:8000/*'],
     // Needed so the toolbar icon exists and can open the side panel (no popup).

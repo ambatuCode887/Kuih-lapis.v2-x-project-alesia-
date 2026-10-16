@@ -510,6 +510,11 @@ a:focus-visible {
   cursor: not-allowed;
 }
 
+.send.is-stop {
+  background: var(--risk-high, #b42318);
+  color: #fff;
+}
+
 /* ───────── Verdict slip ───────── */
 .slip {
   --band: var(--risk-unknown);

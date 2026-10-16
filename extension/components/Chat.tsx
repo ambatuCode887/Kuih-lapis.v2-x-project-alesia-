@@ -10,17 +10,17 @@ import {
 import Markdown from "react-markdown";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource/ibm-plex-mono/400.css";
-import { askAgent, resetSession } from "@/lib/api";
+import { askAgent, isAbortError, resetSession } from "@/lib/api";
 import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
 import { useTheme } from "@/lib/theme";
+import DownloadWarning from "./DownloadWarning";
 import {
   CloseIcon,
   ExpandIcon,
   LinkIcon,
   Mark,
   MessageIcon,
-  MicIcon,
   MoonIcon,
   PaperclipIcon,
   PlusIcon,
@@ -123,12 +123,11 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  // Design only: this just switches the listening look. Speech recognition is not wired up yet.
-  const [listening, setListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const loadingRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const sendTextRef = useRef(sendText);
   sendTextRef.current = sendText;
 
@@ -195,6 +194,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
 
     loadingRef.current = true;
     setLoading(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     setMessages((current) => [
       ...current,
       {
@@ -215,7 +216,13 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     }
 
     try {
-      const reply = await askAgent(text, images, undefined, rememberAgent);
+      const reply = await askAgent(
+        text,
+        images,
+        undefined,
+        rememberAgent,
+        controller.signal,
+      );
       const finalMessage: Message = {
         id: assistantId,
         role: "assistant",
@@ -227,21 +234,36 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       setMessages((current) => [...current, finalMessage]);
       setActiveAgents([]);
     } catch (error) {
-      const errorText =
-        error instanceof Error ? error.message : "Something went wrong.";
-      const errorMessage: Message = {
-        id: assistantId,
-        role: "assistant",
-        text: errorText,
-        agents: participatingAgents,
-        isError: true,
-      };
-      setMessages((current) => [...current, errorMessage]);
+      if (isAbortError(error)) {
+        const stoppedMessage: Message = {
+          id: assistantId,
+          role: "assistant",
+          text: "Stopped. No result was returned.",
+          agents: participatingAgents,
+        };
+        setMessages((current) => [...current, stoppedMessage]);
+      } else {
+        const errorText =
+          error instanceof Error ? error.message : "Something went wrong.";
+        const errorMessage: Message = {
+          id: assistantId,
+          role: "assistant",
+          text: errorText,
+          agents: participatingAgents,
+          isError: true,
+        };
+        setMessages((current) => [...current, errorMessage]);
+      }
       setActiveAgents([]);
     } finally {
+      abortRef.current = null;
       loadingRef.current = false;
       setLoading(false);
     }
+  }
+
+  function stopGeneration() {
+    abortRef.current?.abort();
   }
 
   function send() {
@@ -340,6 +362,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
 
   return (
     <div className={`app app-${layout}`}>
+      <DownloadWarning />
       {layout === "tab" && (
         <aside className="rail">
           <div className="rail-head">
@@ -605,20 +628,6 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
               <PaperclipIcon width={22} height={22} />
               <span>Photo</span>
             </button>
-            <button
-              type="button"
-              className={`mic${listening ? " is-listening" : ""}`}
-              onClick={() => setListening((current) => !current)}
-              aria-pressed={listening}
-              aria-label={listening ? "Stop speaking" : "Speak your message"}
-            >
-              {listening ? (
-                <StopIcon width={22} height={22} />
-              ) : (
-                <MicIcon width={22} height={22} />
-              )}
-              <span>{listening ? "Stop" : "Speak"}</span>
-            </button>
             <input
               ref={fileRef}
               type="file"
@@ -630,18 +639,6 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                 event.target.value = "";
               }}
             />
-            {listening && (
-              <div className="listening" role="status">
-                <span className="wave" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                Listening… tap Stop when you are done.
-              </div>
-            )}
             <textarea
               ref={inputRef}
               value={input}
@@ -657,15 +654,28 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                 }
               }}
             />
-            <button
-              type="submit"
-              className="send"
-              disabled={loading || (!input.trim() && attachments.length === 0)}
-              aria-label="Check"
-            >
-              <SendIcon width={22} height={22} />
-              <span>Check</span>
-            </button>
+            {loading ? (
+              <button
+                type="button"
+                className="send is-stop"
+                onClick={stopGeneration}
+                aria-label="Stop"
+                title="Stop this check"
+              >
+                <StopIcon width={22} height={22} />
+                <span>Stop</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="send"
+                disabled={!input.trim() && attachments.length === 0}
+                aria-label="Check"
+              >
+                <SendIcon width={22} height={22} />
+                <span>Check</span>
+              </button>
+            )}
           </div>
         </form>
       </div>
