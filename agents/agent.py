@@ -22,6 +22,7 @@ from agents.tools.agents.message_agents.attachments import (
     isolate_current_turn,
     preprocess_message_content,
     redact_historical_attachments,
+    targets_ai_instructions,
 )
 from agents.tools.agents.message_agents.agent import message_agent
 from agents.tools.agents.url_check.agent import url_check_agent
@@ -405,9 +406,9 @@ def _parse_safety_triage(text: str) -> str | None:
     return result[0] if result else None
 
 
-def _attachment_prompt_injection_notice(request: str) -> str | None:
+def _attachment_prompt_injection_notice(request: str, *, attachment: bool = True) -> str | None:
     normalized = " ".join(re.findall(r"[a-z0-9]+", request.casefold()))
-    attempts_to_override = any(
+    attempts_to_override = targets_ai_instructions(request) or any(
         phrase in normalized
         for phrase in (
             "ignore previous instructions",
@@ -428,11 +429,18 @@ def _attachment_prompt_injection_notice(request: str) -> str | None:
     )
     if not (attempts_to_override or attempts_to_extract_secrets):
         return None
+    if attachment:
+        return (
+            "The attachment contains suspicious document text that appears to "
+            "target an AI system, such as asking it to ignore instructions or "
+            "reveal secrets. I will treat that text as attempted prompt injection, "
+            "not as a command. This alone does not establish that the document is a scam."
+        )
     return (
-        "The attachment contains text that appears to target an AI system, "
-        "such as asking it to ignore instructions or reveal secrets. I will "
-        "treat that as suspicious document text, not as a command. This alone "
-        "does not establish that the document is a scam."
+        "The message contains text that appears to target an AI system, such as "
+        "asking it to ignore instructions, translate or reveal its instructions, "
+        "or emit a token. I will treat that as suspicious content, not as a "
+        "command. This alone does not establish that the message is a scam."
     )
 
 
@@ -444,6 +452,9 @@ def _requests_private_internals(request: str) -> bool:
         re.IGNORECASE,
     ):
         return False
+
+    if targets_ai_instructions(request):
+        return True
 
     normalized = " ".join(re.findall(r"[a-z0-9]+", request.casefold()))
     override_pattern = re.compile(
@@ -895,6 +906,19 @@ class RequestRouter(Agent):
                         ),
                         turn_complete=False,
                     )
+
+        if not attachment_present:
+            injection_notice = _attachment_prompt_injection_notice(request, attachment=False)
+            if injection_notice:
+                yield Event(
+                    author=self.name,
+                    invocation_id=ctx.invocation_id,
+                    content=types.Content(
+                        role="model",
+                        parts=[types.Part(text=injection_notice)],
+                    ),
+                    turn_complete=False,
+                )
 
         cached_response = _cached_followup_response(
             user_request,

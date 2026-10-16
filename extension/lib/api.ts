@@ -47,6 +47,10 @@ function eventText(event: AdkEvent): string {
     .trim();
 }
 
+export function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 async function readAgentEvents(
   response: Response,
   onProgress?: (text: string) => void,
@@ -264,6 +268,7 @@ export async function askAgent(
   images: string[] = [],
   onProgress?: (text: string) => void,
   onAgent?: (author: string) => void,
+  signal?: AbortSignal,
 ): Promise<AgentReply> {
   if (!USE_BACKEND) return sampleReply(message, images);
 
@@ -273,6 +278,7 @@ export async function askAgent(
     const sessionId = await ensureSession(base);
     response = await fetch(`${base}/run_sse`, {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         appName: APP_NAME,
@@ -297,7 +303,8 @@ export async function askAgent(
         },
       }),
     });
-  } catch {
+  } catch (error) {
+    if (isAbortError(error)) throw error;
     throw new Error(
       `Can't reach the backend at ${base}. Is "adk api_server" running?`,
     );
