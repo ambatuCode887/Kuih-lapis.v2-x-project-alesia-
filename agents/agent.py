@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
 from pathlib import PureWindowsPath
@@ -13,9 +12,8 @@ from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
 from google.adk.models.llm_request import LlmRequest
 from google.adk.utils.context_utils import Aclosing
-from litellm import acompletion
 
-from agents.config import DEFAULT_OPENROUTER_MODEL, agent_model, env, load_environment
+from agents.config import agent_model, load_environment
 from agents.tools.agents.file_classifier.agent import file_classifier_agent
 from agents.tools.agents.message_agents.attachments import (
     has_attachment,
@@ -154,73 +152,23 @@ _SITUATIONAL_RISK_TERMS = re.compile(
     r"\b(?:transfer|pay|paid|payment|fee|fees|otp|gift cards?|send money|police|scammer)\b"
 )
 _MAX_KNOWLEDGE_QUESTION_WORDS = 40
-_TRIAGE_TIMEOUT_SECONDS = 30
-_TRIAGE_CATEGORIES = {
-    "money_transfer",
-    "credential_sharing",
-    "remote_access",
-    "phishing_link",
-}
-_TRIAGE_INSTRUCTION = """
-Classify whether the user's message describes a real, current or imminent request
-that could put their money, credentials, or device at risk. Understand paraphrases
-and judge the meaning, not exact keywords. Examples include a friend asking them
-to send or delegate money to a bank account said to belong to that friend's
-friend, even if the user uses awkward wording or does not call it a scam; an
-authority claiming the account is compromised and telling them to move funds; a
-caller asking for a password or one-time code; or unsolicited remote access.
-
-Also classify phishing_link when an apparent delivery company, bank, or other
-trusted service pressures the user to click a link, pay a fee, sign in, or update
-personal or payment details. Advise them to verify through the official app or
-website instead; do not claim the message is definitely fraudulent.
-
-Treat an unclear third-party recipient as reason to pause and independently
-verify before sending, not as proof of fraud. A familiar person may be mistaken
-or their account may be compromised.
-
-Return an alert only when the user appears to be describing their own situation
-or asking whether to comply with such a request. For general cybersecurity
-questions, fictional examples, or unrelated messages, return alert "none".
-Do not decide whether a person is actually a scammer. A transfer request from a
-friend still merits independent verification, not an accusation.
-
-Return only a JSON object with exactly these keys:
-{"alert":"phishing_link","confidence":0.9,"summary":"The message pairs an unexpected delivery fee with a link."}
-The alert value must be exactly one of "money_transfer", "credential_sharing",
-"remote_access", "phishing_link", or "none". For no alert, use
-{"alert":"none","confidence":0.0,"summary":"I don't see a clear urgent request in this message."}. Confidence must be a number from 0.0 to
-1.0. Summary must be one concise user-facing sentence explaining the key signal
-and, when relevant, a safe next step. Do not include private chain-of-thought.
-""".strip()
-_TRIAGE_SUMMARY_FALLBACKS = {
-    "money_transfer": "This request involves sending money to an unclear recipient.",
-    "credential_sharing": "This message asks for a password, passcode, or one-time code.",
-    "remote_access": "This message asks for remote access to your device.",
-    "phishing_link": "This message combines an unexpected fee or request with a link.",
-    "none": "I don't see a clear urgent request in this message yet.",
-}
-_TRIAGE_ALERT_MESSAGES = {
-    "money_transfer": (
-        "Pause before sending money. Independently confirm the request with the "
-        "person through a number or app you already trust, and verify the "
-        "recipient account. I'm checking the details now."
-    ),
-    "credential_sharing": (
-        "Pause: do not share a password, passcode, or one-time code. Verify the "
-        "request through the service's official channel. I'm checking the details now."
-    ),
-    "remote_access": (
-        "Pause: do not grant remote access to an unsolicited caller. Contact "
-        "the organization through an official channel. I'm checking the details now."
-    ),
-    "phishing_link": (
-        "Pause: don't use links or pay fees from this message. Check through the "
-        "official app or by typing the website address yourself. I'm checking "
-        "the details now."
-    ),
-}
 _ROOT_USER_REQUEST_STATE_KEY = "root_user_request"
+
+_AGENT_STATUS = {
+    "message_agent": "Analyzing message content\u2026",
+    "url_check_agent": "Checking link reputation\u2026",
+    "file_classifier_agent": "Classifying file\u2026",
+    "retrieval_agent": "Retrieving data\u2026",
+}
+
+
+def _status_event(author: str, invocation_id: str, status: str) -> Event:
+    """Build a text-free progress event that the UI shows as a status line."""
+    return Event(
+        author=author,
+        invocation_id=invocation_id,
+        custom_metadata={"status": status},
+    )
 
 
 def should_route_to_retrieval(request: str) -> bool:
@@ -375,37 +323,6 @@ def immediate_safety_notice(request: str) -> str | None:
     return None
 
 
-def _parse_safety_triage_result(text: str) -> tuple[str | None, str] | None:
-    start = text.find("{")
-    if start < 0:
-        return None
-    try:
-        decision, _ = json.JSONDecoder().raw_decode(text[start:])
-    except json.JSONDecodeError:
-        return None
-    if not isinstance(decision, dict):
-        return None
-    alert = decision.get("alert")
-    confidence = decision.get("confidence")
-    if (
-        alert not in _TRIAGE_CATEGORIES | {"none"}
-        or isinstance(confidence, bool)
-        or not isinstance(confidence, (int, float))
-        or not 0 <= confidence <= 100
-    ):
-        return None
-    if confidence <= 1:
-        confidence *= 100
-    summary = _TRIAGE_SUMMARY_FALLBACKS[alert]
-    alert = alert if alert != "none" and confidence >= 60 else None
-    return alert, summary
-
-
-def _parse_safety_triage(text: str) -> str | None:
-    result = _parse_safety_triage_result(text)
-    return result[0] if result else None
-
-
 def _attachment_prompt_injection_notice(request: str, *, attachment: bool = True) -> str | None:
     normalized = " ".join(re.findall(r"[a-z0-9]+", request.casefold()))
     attempts_to_override = targets_ai_instructions(request) or any(
@@ -498,38 +415,6 @@ def _requests_private_internals(request: str) -> bool:
         or bool(disclosure_pattern.search(normalized))
         or bool(requests_canary)
     )
-
-
-#here is the first respondant agent for safety triage u can change their LLM provider
-async def _run_safety_triage(request: str) -> tuple[str | None, str] | None:
-    provider = (env("LLM_PROVIDER", "ollama") or "ollama").strip().lower()
-    if provider == "openrouter":
-        model_name = env("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL)
-        model = f"openrouter/{model_name or DEFAULT_OPENROUTER_MODEL}"
-        provider_options = {
-            "reasoning": {"effort": "none", "exclude": True},
-        }
-    else:
-        model_name = env("OLLAMA_TRIAGE_MODEL", "qwen2.5:3b") or "qwen2.5:3b"
-        api_base = env("OLLAMA_BASE_URL", "http://localhost:11434")
-        model = f"ollama_chat/{model_name}"
-        provider_options = {"api_base": api_base}
-
-    response = await acompletion(
-        model=model,
-        messages=[
-            {"role": "system", "content": _TRIAGE_INSTRUCTION},
-            {"role": "user", "content": request},
-        ],
-        response_format={"type": "json_object"},
-        max_tokens=128,
-        temperature=0,
-        **provider_options,
-    )
-    choices = response.choices or []
-    if not choices:
-        return None
-    return _parse_safety_triage_result(choices[0].message.content or "")
 
 
 def route_request_to_agent(
@@ -818,6 +703,7 @@ class RequestRouter(Agent):
                 turn_complete=True,
             )
             return
+        yield _status_event(self.name, ctx.invocation_id, "Analyzing context\u2026")
         if attachment_present:
             ctx.session.state[_ROOT_USER_REQUEST_STATE_KEY] = user_request
         else:
@@ -833,49 +719,9 @@ class RequestRouter(Agent):
                 ),
                 turn_complete=False,
             )
-        elif attachment_present:
-            yield Event(
-                author=self.name,
-                invocation_id=ctx.invocation_id,
-                content=types.Content(
-                    role="model",
-                    parts=[
-                        types.Part(
-                            text=(
-                                "I'm extracting the attachment text and checking "
-                                "it now. Until verified, don't follow links, "
-                                "send money, share codes, or grant access from it."
-                            )
-                        )
-                    ],
-                ),
-                turn_complete=False,
-            )
-        elif _cached_followup_response(
-            user_request,
-            ctx.session.state.get("cached_followups", []),
-        ):
-            yield Event(
-                author=self.name,
-                invocation_id=ctx.invocation_id,
-                content=types.Content(
-                    role="model",
-                    parts=[types.Part(text="Got it. One moment.")],
-                ),
-                turn_complete=False,
-            )
-        else:
-            yield Event(
-                author=self.name,
-                invocation_id=ctx.invocation_id,
-                content=types.Content(
-                    role="model",
-                    parts=[types.Part(text="Got it. I'm checking this now.")],
-                ),
-                turn_complete=False,
-            )
 
         if attachment_present:
+            yield _status_event(self.name, ctx.invocation_id, "Extracting attachment text\u2026")
             content = await preprocess_message_content(content, ctx)
             ctx.user_content = content
             request = " ".join(
@@ -925,6 +771,7 @@ class RequestRouter(Agent):
             ctx.session.state.get("cached_followups", []),
         )
         if cached_response:
+            yield _status_event(self.name, ctx.invocation_id, "Retrieving data\u2026")
             await asyncio.sleep(_CACHED_FOLLOWUP_DELAY_SECONDS)
             yield Event(
                 author=self.name,
@@ -949,141 +796,22 @@ class RequestRouter(Agent):
         if target is None:
             raise RuntimeError(f"Configured route is missing agent: {target_name}")
 
-        if target_name == "url_check_agent" and not attachment_present and not safety_notice:
-            yield Event(
-                author=self.name,
-                invocation_id=ctx.invocation_id,
-                content=types.Content(
-                    role="model",
-                    parts=[
-                        types.Part(
-                            text=(
-                                "I'm checking this address's reputation now. Until "
-                                "the check is complete, don't open it, sign in, or "
-                                "enter personal or payment details on the site."
-                            )
-                        )
-                    ],
-                ),
-                turn_complete=False,
-            )
-
-        triage_task = None
-        if target_name == "message_agent" and not safety_notice:
-            triage_request = user_request if attachment_present else request
-            triage_task = asyncio.create_task(
-                asyncio.wait_for(
-                    _run_safety_triage(triage_request),
-                    timeout=_TRIAGE_TIMEOUT_SECONDS,
-                )
-            )
+        yield _status_event(
+            self.name,
+            ctx.invocation_id,
+            _AGENT_STATUS.get(target_name, "Analyzing context\u2026"),
+        )
 
         initial_report = ""
-        event_queue: asyncio.Queue[Event | None] = asyncio.Queue()
-
-        async def read_target_stream() -> None:
-            try:
-                async with Aclosing(target.run_async(ctx)) as events:
-                    async for event in events:
-                        await event_queue.put(event)
-            finally:
-                await event_queue.put(None)
-
-        stream_task = asyncio.create_task(read_target_stream())
-        next_event_task = asyncio.create_task(event_queue.get())
-        buffered_events = []
-
-        def capture_report(event: Event) -> None:
-            nonlocal initial_report
-            if event.is_final_response() and event.content:
-                initial_report = "\n".join(
-                    part.text
-                    for part in event.content.parts or []
-                    if getattr(part, "text", None)
-                )
-
-        async def flush_buffered_events() -> AsyncGenerator[Event, None]:
-            while buffered_events:
-                buffered_event = buffered_events.pop(0)
-                capture_report(buffered_event)
-                yield buffered_event
-
-        try:
-            while next_event_task is not None:
-                waiting_tasks = {next_event_task}
-                if triage_task is not None:
-                    waiting_tasks.add(triage_task)
-                done, _ = await asyncio.wait(
-                    waiting_tasks,
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                if triage_task is not None and triage_task in done:
-                    try:
-                        triage = triage_task.result()
-                    except Exception:
-                        triage = None
-                    triage_task = None
-                    alert, summary = triage or (None, "")
-                    action = _TRIAGE_ALERT_MESSAGES.get(alert)
-                    notice = f"{summary} {action}".strip() if action else summary
-                    if notice:
-                        yield Event(
-                            author=self.name,
-                            invocation_id=ctx.invocation_id,
-                            content=types.Content(
-                                role="model",
-                                parts=[types.Part(text=notice)],
-                            ),
-                            turn_complete=False,
-                        )
-                    async for buffered_event in flush_buffered_events():
-                        yield buffered_event
-
-                if next_event_task in done:
-                    event = next_event_task.result()
-                    if event is None:
-                        next_event_task = None
-                        await stream_task
-                        continue
-                    capture_report(event)
-                    if triage_task is not None:
-                        buffered_events.append(event)
-                    else:
-                        yield event
-                    next_event_task = asyncio.create_task(event_queue.get())
-
-            if triage_task is not None:
-                try:
-                    triage = await triage_task
-                except Exception:
-                    triage = None
-                triage_task = None
-                alert, summary = triage or (None, "")
-                action = _TRIAGE_ALERT_MESSAGES.get(alert)
-                notice = f"{summary} {action}".strip() if action else summary
-                if notice:
-                    yield Event(
-                        author=self.name,
-                        invocation_id=ctx.invocation_id,
-                        content=types.Content(
-                            role="model",
-                            parts=[types.Part(text=notice)],
-                        ),
-                        turn_complete=False,
+        async with Aclosing(target.run_async(ctx)) as events:
+            async for event in events:
+                if event.is_final_response() and event.content:
+                    initial_report = "\n".join(
+                        part.text
+                        for part in event.content.parts or []
+                        if getattr(part, "text", None)
                     )
-            async for buffered_event in flush_buffered_events():
-                yield buffered_event
-        finally:
-            pending_tasks = [
-                task
-                for task in (next_event_task, triage_task, stream_task)
-                if task is not None and not task.done()
-            ]
-            for task in pending_tasks:
-                task.cancel()
-            if pending_tasks:
-                await asyncio.gather(*pending_tasks, return_exceptions=True)
+                yield event
 
         final_report = initial_report
         if requires_coordinator_followup(target_name):
@@ -1094,6 +822,7 @@ class RequestRouter(Agent):
                 agent for agent in self.sub_agents if agent.name == "coordinator_agent"
             )
             follow_up_name = select_follow_up_agent(assessment)
+            yield _status_event(self.name, ctx.invocation_id, "Reviewing the assessment\u2026")
             follow_up_report = ""
             async with Aclosing(coordinator.run_async(ctx)) as events:
                 async for event in events:
@@ -1110,6 +839,7 @@ class RequestRouter(Agent):
             )
 
         ctx.session.state["root_specialist_report"] = final_report
+        yield _status_event(self.name, ctx.invocation_id, "Generating a response\u2026")
         root_answer_returned = False
         try:
             async for event in super()._run_async_impl(ctx):
