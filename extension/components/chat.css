@@ -402,6 +402,43 @@ a:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.related-questions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 2px 0;
+}
+
+.related-questions-label {
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.related-question {
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.related-question:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
+.related-question:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .reply {
   max-width: 100%;
   overflow-wrap: anywhere;

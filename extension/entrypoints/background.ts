@@ -1,4 +1,5 @@
 import { askAgent } from '@/lib/api';
+import { isCleanDomain } from '@/lib/domainStats';
 
 const MENU_SELECTION = 'check-selection';
 const MENU_LINK = 'check-link';
@@ -30,7 +31,9 @@ function displayFilename(path: string): string {
 
 async function openDownloadReview(review: DownloadReview): Promise<void> {
   const key = reviewKey(review.downloadId);
-  await browser.storage.local.set({ [key]: review });
+  const [current] = await browser.downloads.search({ id: review.downloadId });
+  const filename = current?.filename ? displayFilename(current.filename) : review.filename;
+  await browser.storage.local.set({ [key]: { ...review, filename } });
 
   try {
     const [activeTab] = await browser.tabs.query({
@@ -98,13 +101,18 @@ async function inspectDownload(
       return;
     }
 
-    const clean =
-      assessment?.risk_level === 'low' &&
-      Boolean(assessment.indicators?.length) &&
-      assessment.indicators?.every(
-        (indicator) => indicator.verdict?.toLowerCase() === 'clean',
-      );
-    if (clean) {
+    if (reply.domainStats && reply.domainStats.malicious > 0) {
+      await openDownloadReview({
+        downloadId: item.id,
+        filename: displayFilename(item.filename),
+        domain,
+        status: 'malicious',
+        details: `VirusTotal reported this domain as malicious (${reply.domainStats.malicious} engine(s)).`,
+      });
+      return;
+    }
+
+    if (isCleanDomain(reply.domainStats)) {
         try {
           await browser.downloads.resume(item.id);
         } catch (error) {
@@ -148,8 +156,13 @@ async function handleDownloadReviewAction(
   }
 
   try {
+    const [item] = await browser.downloads.search({ id: message.downloadId });
+    const saved = item?.state === 'complete';
     if (message.action === 'proceed') {
-      await browser.downloads.resume(message.downloadId);
+      // A completed download is already saved, so there is nothing to resume.
+      if (!saved) await browser.downloads.resume(message.downloadId);
+    } else if (saved) {
+      await browser.downloads.removeFile(message.downloadId);
     } else {
       await browser.downloads.cancel(message.downloadId);
     }
@@ -166,12 +179,25 @@ async function handleDownloadReviewAction(
   }
 }
 
+async function updateReviewFilename(downloadId: number, filename: string): Promise<void> {
+  const key = reviewKey(downloadId);
+  const stored = await browser.storage.local.get(key);
+  const review = stored[key] as DownloadReview | undefined;
+  if (!review || review.filename === filename) return;
+  await browser.storage.local.set({ [key]: { ...review, filename } });
+}
+
 export default defineBackground(() => {
   // Clicking the toolbar icon opens the side panel.
   browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
   browser.downloads.onCreated.addListener((item) => {
     void inspectDownload(item);
+  });
+
+  browser.downloads.onChanged.addListener((delta) => {
+    if (!delta.filename?.current) return;
+    void updateReviewFilename(delta.id, displayFilename(delta.filename.current));
   });
 
   browser.runtime.onMessage.addListener((message: unknown) => {

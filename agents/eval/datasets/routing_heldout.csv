@@ -1,0 +1,25 @@
+id,request,has_attachment,expected_route
+heldout-route-001,Describe the main goals of a security awareness training program.,false,retrieval_agent
+heldout-route-002,Why do organizations use network segmentation?,false,retrieval_agent
+heldout-route-003,Summarize the purpose of incident response planning.,false,retrieval_agent
+heldout-route-004,What makes a password hard to crack?,false,retrieval_agent
+heldout-route-005,How does a firewall decide which traffic to block?,false,retrieval_agent
+heldout-route-006,Tell me about the risks of storing data in unencrypted backups.,false,retrieval_agent
+heldout-route-007,Which practices reduce exposure to malicious browser extensions?,false,retrieval_agent
+heldout-route-008,What is the role of a security operations center?,false,retrieval_agent
+heldout-route-009,Explain why software updates close security holes.,false,retrieval_agent
+heldout-route-010,How do I store my recovery codes safely?,false,retrieval_agent
+heldout-route-011,What does zero trust architecture mean?,false,retrieval_agent
+heldout-route-012,How can a family teach children about online privacy?,false,retrieval_agent
+heldout-route-013,Could you take a look at this note from my landlord asking for a deposit transfer today?,false,message_agent
+heldout-route-014,My phone shows a text saying my parcel is held and asks for a small payment. Thoughts?,false,message_agent
+heldout-route-015,This email from HR says I must log in to view my payslip. Is it fine to open?,false,message_agent
+heldout-route-016,Someone on a dating app wants me to invest in crypto. Does that sound right?,false,message_agent
+heldout-route-017,A pop-up says my computer is infected and tells me to call a number. Is that real?,false,message_agent
+heldout-route-018,I got a voicemail from the tax office threatening arrest. Legit or not?,false,message_agent
+heldout-route-019,Can you review this offer letter that wants my bank details before the interview?,false,message_agent
+heldout-route-020,My friend's account messaged me asking for a loan. Is it really them?,false,message_agent
+heldout-route-021,The message says my subscription renews for 300 dollars unless I cancel here. Is it safe to click?,false,message_agent
+heldout-route-022,A QR code poster in the car park says to scan it to claim a refund. Should I?,false,message_agent
+heldout-route-023,An app asked for my social security number to verify me. Is that normal?,false,message_agent
+heldout-route-024,Someone emailed me my old password and says they will post my photos unless I pay. Is this a real threat?,false,message_agent

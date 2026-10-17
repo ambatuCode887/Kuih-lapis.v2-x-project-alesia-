@@ -8,10 +8,12 @@ from types import SimpleNamespace
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.events.event import Event
 from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 from PIL import Image
 from pypdf import PdfWriter
+import pytest
 
 from agents.agent import (
     _ROOT_INSTRUCTION,
@@ -21,7 +23,7 @@ from agents.agent import (
     _fallback_root_response,
     _restore_root_user_request,
     _cached_followup_response,
-    _followup_suggestions,
+    _followup_questions,
     immediate_safety_notice,
     root_agent,
     route_request_to_agent,
@@ -32,6 +34,25 @@ from agents.tools.agents.coordinator_agents.agent import (
     select_follow_up_agent,
 )
 from agents.tools.agents.retrieval.agent import retrieval_agent
+from agents.tools.functions.retrieve.credential_stuffing import format_passage
+
+
+def test_format_passage_hides_raw_metadata_and_scores() -> None:
+    text = format_passage(
+        2,
+        {
+            "score": 0.8123,
+            "source": "data.md",
+            "chunk_index": 0,
+            "metadata": {"category": "Phishing"},
+            "text": "Passage body.",
+        },
+    )
+
+    assert text == "[2] Source: data.md, chunk 0 (category: Phishing)\nPassage body."
+
+    fallback = format_passage(1, {"source": "", "chunk_index": None, "text": "Body."})
+    assert fallback == "[1] Source: unknown source\nBody."
 
 
 def test_cybersecurity_knowledge_questions_route_to_retrieval() -> None:
@@ -286,7 +307,7 @@ def test_root_answers_greeting_without_scam_assessment() -> None:
     assert "What cybersecurity question" in event.content.parts[0].text
 
 
-def test_root_falls_back_when_model_returns_no_text(monkeypatch) -> None:
+def test_retrieval_evidence_goes_to_root_model_and_not_to_user(monkeypatch) -> None:
     class RetrievalStub(BaseAgent):
         async def run_async(self, context):
             yield Event(
@@ -299,11 +320,21 @@ def test_root_falls_back_when_model_returns_no_text(monkeypatch) -> None:
                 turn_complete=True,
             )
 
-    async def empty_root_response(self, context):
-        if False:
-            yield None
+    root_calls = []
 
-    monkeypatch.setattr("agents.agent.Agent._run_async_impl", empty_root_response)
+    async def fake_root(self, context):
+        root_calls.append(context.session.state.get("root_specialist_report"))
+        yield Event(
+            author=self.name,
+            invocation_id=context.invocation_id,
+            content=types.Content(
+                role="model",
+                parts=[types.Part(text="MFA adds a second factor to your login.")],
+            ),
+            turn_complete=True,
+        )
+
+    monkeypatch.setattr("agents.agent.Agent._run_async_impl", fake_root)
     router = RequestRouter(
         model=root_agent.model,
         name="root_agent",
@@ -313,7 +344,7 @@ def test_root_falls_back_when_model_returns_no_text(monkeypatch) -> None:
     )
     context = SimpleNamespace(
         session=SimpleNamespace(state={}, events=[]),
-        invocation_id="empty-root-response-test",
+        invocation_id="retrieval-root-test",
         user_content=types.Content(
             role="user",
             parts=[types.Part(text="How does MFA help secure my account?")],
@@ -324,14 +355,35 @@ def test_root_falls_back_when_model_returns_no_text(monkeypatch) -> None:
         return [event async for event in router._run_async_impl(context)]
 
     events = asyncio.run(collect_events())
-    final_events = [
-        event
+    user_visible = [
+        part.text
         for event in events
-        if event.author == "root_agent" and event.is_final_response()
+        if event.content
+        for part in event.content.parts or []
+        if getattr(part, "text", None)
     ]
 
-    assert final_events
-    assert "Retrieved evidence" in final_events[-1].content.parts[0].text
+    assert len(root_calls) == 1
+    assert "Retrieved evidence: MFA adds a second factor." in root_calls[0]
+    assert not any("Retrieved evidence" in text for text in user_visible)
+    assert user_visible[-1] == "MFA adds a second factor to your login."
+
+
+def test_retrieval_uses_similarity_floor_by_default(monkeypatch) -> None:
+    from agents.tools.functions.retrieve import credential_stuffing
+
+    captured = {}
+    monkeypatch.setattr(credential_stuffing, "embed_text", lambda query: [0.0] * 768)
+
+    def fake_search(**kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(credential_stuffing, "search", fake_search)
+
+    credential_stuffing.retrieve_knowledge("Which country has the most scams?")
+
+    assert captured["score_threshold"] == credential_stuffing.DEFAULT_SCORE_THRESHOLD
 
 
 def test_message_fallback_uses_structured_assessment_and_actions() -> None:
@@ -427,9 +479,81 @@ def test_status_events_carry_progress_without_reply_text() -> None:
     for event in status_events:
         assert event.author == "test_root"
         assert event.content is None
-    assert " ".join(part.text for part in report.content.parts) == (
-        "URL reputation report follows."
+    assert report.author == "url_check_agent"
+    assert report.content is None
+
+
+def test_coordinator_json_stays_out_of_user_stream_but_reaches_root() -> None:
+    class AssessmentAgent(BaseAgent):
+        async def run_async(self, context):
+            yield Event(
+                author=self.name,
+                invocation_id=context.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text='{"confidence": 40, "risk_level": "medium"}')],
+                ),
+                turn_complete=True,
+            )
+
+    class ClarificationAgent(BaseAgent):
+        async def run_async(self, context):
+            yield Event(
+                author=self.name,
+                invocation_id=context.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[
+                        types.Part(
+                            text='{"clarification_needed": true, "questions": ["Which message?"]}'
+                        )
+                    ],
+                ),
+                turn_complete=True,
+            )
+
+    router = RequestRouter(
+        model=root_agent.model,
+        name="test_root",
+        instruction="test",
+        description="test router",
+        sub_agents=[
+            AssessmentAgent(name="message_agent"),
+            ClarificationAgent(name="coordinator_agent"),
+        ],
     )
+    state: dict = {}
+    context = SimpleNamespace(
+        session=SimpleNamespace(state=state, events=[]),
+        invocation_id="coordinator-json-test",
+        user_content=types.Content(
+            role="user",
+            parts=[types.Part(text="Someone sent me a message asking for my password. Is it safe?")],
+        ),
+    )
+
+    async def events_before_reply():
+        events = router._run_async_impl(context)
+        collected = []
+        try:
+            async for event in events:
+                collected.append(event)
+                if (event.custom_metadata or {}).get("status") == "Generating a response…":
+                    break
+        finally:
+            await events.aclose()
+        return collected
+
+    collected = asyncio.run(events_before_reply())
+    user_visible_text = [
+        event
+        for event in collected
+        if event.author != "test_root"
+        and event.content
+        and any(getattr(part, "text", None) for part in event.content.parts or [])
+    ]
+    assert user_visible_text == []
+    assert '"clarification_needed": true' in state["root_specialist_report"]
 
 
 def test_safe_account_scam_routes_to_message_agent_before_retrieval() -> None:
@@ -760,6 +884,32 @@ def test_non_message_subagent_prompts_mark_external_content_untrusted() -> None:
         assert expected_rule in prompt
 
 
+def test_retrieval_specialist_reports_unavailable_knowledge_base_instead_of_crashing(monkeypatch) -> None:
+    def unavailable(query):
+        raise RuntimeError("Ollama embedding request failed for model 'nomic-embed-text:latest'.")
+
+    monkeypatch.setattr("agents.tools.agents.retrieval.agent.retrieve_knowledge", unavailable)
+    agent = retrieval_agent()
+    context = SimpleNamespace(
+        user_content=types.Content(
+            role="user",
+            parts=[types.Part(text="How does MFA help secure my account?")],
+        ),
+        invocation_id="retrieval-unavailable-test",
+    )
+
+    async def collect_events():
+        return [event async for event in agent._run_async_impl(context)]
+
+    events = asyncio.run(collect_events())
+
+    assert len(events) == 1
+    assert events[0].is_final_response()
+    assert "knowledge base is unavailable" in events[0].content.parts[0].text
+    assert "nomic-embed-text" not in events[0].content.parts[0].text
+    assert events[0].actions.state_delta["cached_followups"] == []
+
+
 def test_retrieval_specialist_returns_evidence_without_an_llm(monkeypatch) -> None:
     result = {
         "score": 0.91,
@@ -793,8 +943,8 @@ def test_retrieval_specialist_returns_evidence_without_an_llm(monkeypatch) -> No
     assert not hasattr(agent, "model")
     assert len(events) == 1
     assert events[0].is_final_response()
-    assert "source=security.csv" in events[0].content.parts[0].text
-    assert "chunk_index=12" in events[0].content.parts[0].text
+    assert "[1] Source: security.csv, chunk 12 (category: Authentication)" in events[0].content.parts[0].text
+    assert "source=" not in events[0].content.parts[0].text
     assert "Use a password manager" in events[0].content.parts[0].text
     assert events[0].actions.state_delta["cached_followups"] == [
         {
@@ -877,13 +1027,15 @@ def test_cached_followup_citation_hides_absolute_source_path() -> None:
     assert "Alice" not in response
 
 
-def test_followup_suggestions_use_only_cached_questions() -> None:
-    suggestions = _followup_suggestions(
-        [{"question": "What is MFA?", "answer": "A second factor."}]
+def test_followup_questions_list_only_cached_questions() -> None:
+    questions = _followup_questions(
+        [
+            {"question": "What is MFA?", "answer": "A second factor."},
+            {"question": "  ", "answer": "Ignored."},
+        ]
     )
 
-    assert "What is MFA?" in suggestions
-    assert "instant cached answer" in suggestions
+    assert questions == ["What is MFA?"]
 
 
 def test_root_delays_cached_followup_without_running_specialists(monkeypatch) -> None:
@@ -926,6 +1078,96 @@ def test_root_delays_cached_followup_without_running_specialists(monkeypatch) ->
     assert events[2].is_final_response()
     assert "MFA uses more than one verification factor." in events[2].content.parts[0].text
     assert "Source: security.csv, chunk 12." in events[2].content.parts[0].text
+
+
+async def _run_conversation(messages: list[str]) -> list[list[Event]]:
+    session_service = InMemorySessionService()
+    runner = Runner(
+        app_name="agents",
+        agent=root_agent,
+        session_service=session_service,
+    )
+    await session_service.create_session(
+        app_name="agents", user_id="test-user", session_id="test-session"
+    )
+    turns = []
+    for message in messages:
+        turns.append(
+            [
+                event
+                async for event in runner.run_async(
+                    user_id="test-user",
+                    session_id="test-session",
+                    new_message=types.Content(role="user", parts=[types.Part(text=message)]),
+                )
+            ]
+        )
+    return turns
+
+
+def test_specialist_failure_returns_safe_fallback_instead_of_crashing(monkeypatch) -> None:
+    def broken_search(query):
+        raise ValueError("unexpected specialist failure")
+
+    monkeypatch.setattr("agents.tools.agents.retrieval.agent.retrieve_knowledge", broken_search)
+
+    [turn] = asyncio.run(_run_conversation(["What is credential stuffing?"]))
+
+    final = [event for event in turn if event.is_final_response() and event.content]
+    assert final, "the user must always receive a final reply"
+    assert final[-1].author == "root_agent"
+    assert final[-1].content.parts[0].text.strip()
+    assert "couldn't summarize the knowledge search" in final[-1].content.parts[0].text
+
+
+def test_related_questions_travel_as_metadata_and_send_as_cached_answers(monkeypatch) -> None:
+    def fake_retrieve(query):
+        return {
+            "results": [
+                {
+                    "score": 0.91,
+                    "text": "Question: What is MFA?\nAnswer: MFA uses more than one verification factor.",
+                    "source": "security.csv",
+                    "chunk_index": "12",
+                }
+            ]
+        }
+
+    monkeypatch.setattr("agents.tools.agents.retrieval.agent.retrieve_knowledge", fake_retrieve)
+    monkeypatch.setattr("agents.agent._CACHED_FOLLOWUP_DELAY_SECONDS", 0)
+
+    first, second = asyncio.run(
+        _run_conversation(["What is credential stuffing?", "What is MFA?"])
+    )
+
+    related = [
+        event
+        for event in first
+        if (event.custom_metadata or {}).get("kind") == "related_questions"
+    ]
+    assert len(related) == 1
+    assert related[0].custom_metadata["questions"] == ["What is MFA?"]
+    assert related[0].content is None
+
+    answer = [event for event in second if event.is_final_response() and event.content]
+    assert answer
+    text = answer[-1].content.parts[0].text
+    assert "MFA uses more than one verification factor." in text
+    assert "Source: security.csv, chunk 12." in text
+
+
+def test_qdrant_outage_is_reported_as_retrieval_runtime_error(monkeypatch) -> None:
+    from agents.tools.functions.retrieve import credential_stuffing
+
+    monkeypatch.setattr(credential_stuffing, "embed_text", lambda query: [0.0] * 768)
+
+    def qdrant_down(**kwargs):
+        raise ConnectionError("connection refused")
+
+    monkeypatch.setattr(credential_stuffing, "search", qdrant_down)
+
+    with pytest.raises(RuntimeError, match="Qdrant search failed"):
+        credential_stuffing.retrieve_knowledge("What is MFA?")
 
 
 def test_message_agent_detects_adk_inline_uploads() -> None:
