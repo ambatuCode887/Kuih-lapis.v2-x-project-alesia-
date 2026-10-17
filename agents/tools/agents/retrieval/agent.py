@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 
 from google.genai import types
@@ -8,6 +9,8 @@ from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
 
 from agents.tools.functions.retrieve.credential_stuffing import format_passage, retrieve_knowledge
+
+logger = logging.getLogger(__name__)
 
 _QA_RECORD = re.compile(
     r"\s*Question:\s*(?P<question>.*?)\s*\nAnswer:\s*(?P<answer>.*?)\s*\Z",
@@ -57,14 +60,19 @@ class RetrievalAgent(BaseAgent):
         if not query:
             report = "No query text was provided, so no knowledge search was run."
         else:
-            retrieval = await asyncio.to_thread(retrieve_knowledge, query)
-            results = retrieval.get("results", [])
-            followups = _cached_followups(results, query)
-            if not results:
-                report = "No relevant context was found in the knowledge base."
+            try:
+                retrieval = await asyncio.to_thread(retrieve_knowledge, query)
+            except RuntimeError as error:
+                logger.warning("Knowledge retrieval unavailable: %s", error)
+                report = "The knowledge base is unavailable right now. Please try again in a moment."
             else:
-                passages = [format_passage(index, result) for index, result in enumerate(results, start=1)]
-                report = "Retrieved evidence:\n" + "\n\n".join(passages)
+                results = retrieval.get("results", [])
+                followups = _cached_followups(results, query)
+                if not results:
+                    report = "No relevant context was found in the knowledge base."
+                else:
+                    passages = [format_passage(index, result) for index, result in enumerate(results, start=1)]
+                    report = "Retrieved evidence:\n" + "\n\n".join(passages)
 
         yield Event(
             author=self.name,

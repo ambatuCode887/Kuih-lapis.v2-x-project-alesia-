@@ -13,10 +13,15 @@ def _public_source_label(source: Any) -> str:
     return PureWindowsPath(source).name
 
 
+# Minimum cosine similarity for a chunk to count as evidence. Measured on
+# on-topic questions (top hits 0.73+) vs. an off-topic question (top hit 0.59).
+DEFAULT_SCORE_THRESHOLD = 0.65
+
+
 def retrieve_knowledge(
     query: str,
     limit: int = 5,
-    score_threshold: float | None = None,
+    score_threshold: float | None = DEFAULT_SCORE_THRESHOLD,
 ) -> dict[str, Any]:
     """Retrieve relevant RAG chunks from Qdrant for a user query."""
     if isinstance(score_threshold, str):
@@ -30,21 +35,25 @@ def retrieve_knowledge(
                 raise ValueError("score_threshold must be a number or null.") from error
 
     vector = embed_text(query)
-    hits = search(vector=vector, limit=limit, score_threshold=score_threshold)
+    try:
+        hits = search(vector=vector, limit=limit, score_threshold=score_threshold)
+    except Exception as error:
+        raise RuntimeError(
+            "Qdrant search failed. Check that Qdrant is running and QDRANT_URL is correct."
+        ) from error
     return {"query": query, "results": [_hit_to_result(hit) for hit in hits]}
 
 
 def format_passage(index: int, result: dict[str, Any]) -> str:
-    score = result.get("score")
-    score_text = f"{score:.3f}" if isinstance(score, (int, float)) else "unknown"
+    source = result.get("source") or "unknown source"
+    chunk_index = result.get("chunk_index")
     category = (result.get("metadata") or {}).get("category")
-    category_text = f"; category={category}" if category else ""
-    return (
-        f"[{index}] source={result.get('source', '')}; "
-        f"chunk_index={result.get('chunk_index')}; "
-        f"score={score_text}{category_text}\n"
-        f"{result.get('text', '')}"
-    )
+    header = f"[{index}] Source: {source}"
+    if chunk_index is not None:
+        header += f", chunk {chunk_index}"
+    if category:
+        header += f" (category: {category})"
+    return f"{header}\n{result.get('text', '')}"
 
 
 def _hit_to_result(hit: Any) -> dict[str, Any]:

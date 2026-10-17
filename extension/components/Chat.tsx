@@ -48,6 +48,8 @@ export interface Message {
   sourceText?: string;
   /** ADK event authors that participated in this response. */
   agents?: string[];
+  /** Cached questions shown as one-tap follow-ups. */
+  relatedQuestions?: string[];
   isError?: boolean;
 }
 
@@ -59,7 +61,7 @@ function normalizeMessages(messages: Message[]): Message[] {
   return messages.map((message) => ({
     ...message,
     assessment: message.assessment
-      ? parseAssessment(JSON.stringify(message.assessment)) ?? undefined
+      ? (parseAssessment(JSON.stringify(message.assessment)) ?? undefined)
       : undefined,
   }));
 }
@@ -232,6 +234,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
         assessment: reply.assessment ?? undefined,
         sourceText: reply.assessment && text ? extractSource(text) : undefined,
         agents: reply.agents?.length ? reply.agents : participatingAgents,
+        relatedQuestions: reply.relatedQuestions?.length
+          ? reply.relatedQuestions
+          : undefined,
       };
       setMessages((current) => [...current, finalMessage]);
       setActiveAgents([]);
@@ -545,8 +550,33 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                     <Markdown>{message.text}</Markdown>
                   </div>
                 )}
+                {message.role === "assistant" &&
+                  !!message.relatedQuestions?.length && (
+                    <div
+                      className="related-questions"
+                      aria-label="Related questions"
+                    >
+                      <span className="related-questions-label">
+                        Related questions
+                      </span>
+                      {message.relatedQuestions.map((question) => (
+                        <button
+                          key={question}
+                          type="button"
+                          className="related-question"
+                          disabled={loading}
+                          onClick={() => sendText(question)}
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 {message.role === "assistant" && !!message.agents?.length && (
-                  <div className="agent-trace" aria-label="Agents that participated">
+                  <div
+                    className="agent-trace"
+                    aria-label="Agents that participated"
+                  >
                     <span className="agent-trace-label">Agents</span>
                     <span className="agent-trace-names">
                       {message.agents.join(" → ")}
@@ -557,9 +587,14 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
             ))}
 
             {loading && activeAgents.length > 0 && (
-              <div className="agent-trace" aria-label="Agents working on this response">
+              <div
+                className="agent-trace"
+                aria-label="Agents working on this response"
+              >
                 <span className="agent-trace-label">Agents</span>
-                <span className="agent-trace-names">{activeAgents.join(" → ")}</span>
+                <span className="agent-trace-names">
+                  {activeAgents.join(" → ")}
+                </span>
               </div>
             )}
 

@@ -1,4 +1,5 @@
 import { parseAssessment, type Assessment, type Indicator } from './assessment';
+import { extractDomainStats, type DomainStats } from './domainStats';
 import { splitDataUrl } from './images';
 
 /**
@@ -22,17 +23,28 @@ export interface AgentReply {
   assessment: Assessment | null;
   /** ADK event authors observed during this response, in first-seen order. */
   agents?: string[];
+  /** Cached questions the user can send for an instant answer. */
+  relatedQuestions?: string[];
+  /** VirusTotal counts from get_domain_report, or null when no domain was checked. */
+  domainStats?: DomainStats | null;
 }
 
 interface AdkPart {
   text?: string;
+  functionResponse?: {
+    name?: string;
+    response?: {
+      structuredContent?: unknown;
+      content?: { type?: string; text?: string }[];
+    };
+  };
 }
 
 interface AdkEvent {
   author?: string;
   content?: { parts?: AdkPart[] };
   turnComplete?: boolean;
-  customMetadata?: { status?: string };
+  customMetadata?: { status?: string; kind?: string; questions?: string[] };
 }
 
 async function backendUrl(): Promise<string> {
@@ -339,10 +351,16 @@ export async function askAgent(
     };
   }
 
-  // The root agent writes the final answer, so take its last text event.
+  // The root agent writes the final answer, and retrieval-only replies are
+  // the retrieval agent's passages.
   const answers = events.filter(
-    (event) => event.author === 'root_agent' && eventText(event),
+    (event) =>
+      (event.author === 'root_agent' || event.author === 'retrieval_agent') &&
+      eventText(event),
   );
+  const relatedQuestions = events
+    .filter((event) => event.customMetadata?.kind === 'related_questions')
+    .flatMap((event) => event.customMetadata?.questions ?? []);
   const lastAnswer = answers.at(-1);
   const text = lastAnswer
     ? eventText(lastAnswer)
@@ -355,5 +373,6 @@ export async function askAgent(
     ),
   ];
 
-  return { text, assessment, agents };
+  const domainStats = extractDomainStats(events);
+  return { text, assessment, agents, relatedQuestions, domainStats };
 }
