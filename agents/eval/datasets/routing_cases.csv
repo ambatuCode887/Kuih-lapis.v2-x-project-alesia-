@@ -49,16 +49,6 @@ url-007,Is this IP malicious: 203.0.113.10?,false,url_check_agent
 url-008,Scan this link: www.example.com,false,url_check_agent
 url-009,Check the reputation of this domain: example.com,false,url_check_agent
 url-010,What is the reputation of this URL: https://example.com/,false,url_check_agent
-classifier-001,Classify this precomputed feature vector.,false,file_classifier_agent
-classifier-002,Score this pre-extracted feature vector for a PDF.,false,file_classifier_agent
-classifier-003,Use the complete numeric feature vector for the HTML classifier.,false,file_classifier_agent
-classifier-004,Run the file classifier on these precomputed features.,false,file_classifier_agent
-classifier-005,I have a precomputed feature vector to classify.,false,file_classifier_agent
-classifier-006,Classify these pre-extracted features for an Excel file.,false,file_classifier_agent
-classifier-007,Score this complete feature vector with the Word model.,false,file_classifier_agent
-classifier-008,Can you classify a numeric feature vector?,false,file_classifier_agent
-classifier-009,Use the precomputed features to classify this file.,false,file_classifier_agent
-classifier-010,Here is a precomputed feature vector for classification.,false,file_classifier_agent
 attachment-001,Is this screenshot a scam?,true,message_agent
 attachment-002,Please inspect this PDF attachment for phishing indicators.,true,message_agent
 attachment-003,Can you read this screenshot and tell me whether the message is suspicious?,true,message_agent

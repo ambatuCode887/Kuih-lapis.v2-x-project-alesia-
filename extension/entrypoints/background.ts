@@ -70,7 +70,7 @@ async function inspectDownload(
         throw new Error('This download does not have an HTTP or HTTPS source domain.');
       }
       domain = url.hostname;
-      reply = await askAgent(`Check this domain: ${domain}`);
+      reply = await askAgent(`Check download source: ${domain}`);
     } catch (error) {
       await openDownloadReview({
         downloadId: item.id,

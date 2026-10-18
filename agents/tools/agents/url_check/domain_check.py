@@ -23,6 +23,60 @@ def domain_from_request(request: str) -> str | None:
     return match.group(1).lower() if match else None
 
 
+_DOWNLOAD_CHECK_PATTERN = re.compile(r"^\s*Check download source:\s*([A-Za-z0-9.-]+)\s*$")
+
+
+def download_source_from_request(request: str) -> str | None:
+    """Return the host from a `Check download source: <host>` request, else None."""
+    match = _DOWNLOAD_CHECK_PATTERN.match(request)
+    return match.group(1).lower() if match else None
+
+
+def download_assessment(domain: str, counts: dict[str, int] | None) -> dict[str, Any]:
+    """Build the url_check assessment for a download source from VirusTotal counts."""
+    if counts is None:
+        return {
+            "risk_score": None,
+            "risk_level": "insufficient_information",
+            "confidence": 0,
+            "indicators": [
+                {"indicator": domain, "verdict": "unknown", "evidence": "No VirusTotal report was returned."}
+            ],
+            "assessment": f"The reputation of {domain} could not be verified.",
+            "recommended_actions": ["Verify the download source before opening the file."],
+            "limitations": ["The VirusTotal lookup failed or returned no report."],
+        }
+    malicious = counts["malicious"]
+    suspicious = counts["suspicious"]
+    if malicious:
+        verdict, score, level = "malicious", 80, "critical"
+        summary = f"VirusTotal reports {domain} as malicious ({malicious} engine(s))."
+    elif suspicious:
+        verdict, score, level = "suspicious", 50, "high"
+        summary = f"VirusTotal reports {suspicious} suspicious detection(s) for {domain}."
+    else:
+        verdict, score, level = "clean", 0, "low"
+        summary = (
+            f"VirusTotal reports no malicious or suspicious detections for {domain}. "
+            "That does not prove it is safe."
+        )
+    return {
+        "risk_score": score,
+        "risk_level": level,
+        "confidence": 80,
+        "indicators": [
+            {
+                "indicator": domain,
+                "verdict": verdict,
+                "evidence": f"{malicious} malicious, {suspicious} suspicious detections.",
+            }
+        ],
+        "assessment": summary,
+        "recommended_actions": [] if verdict == "clean" else ["Do not open the file if the source looks unexpected."],
+        "limitations": [],
+    }
+
+
 def detection_counts(result: Any) -> dict[str, int] | None:
     """Read malicious and suspicious counts from a get_domain_report tool result."""
     if not isinstance(result, dict) or "error" in result:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from pathlib import PureWindowsPath
@@ -14,7 +15,6 @@ from google.adk.models.llm_request import LlmRequest
 from google.adk.utils.context_utils import Aclosing
 
 from agents.config import agent_model, load_environment
-from agents.tools.agents.file_classifier.agent import file_classifier_agent
 from agents.tools.agents.message_agents.attachments import (
     has_attachment,
     isolate_current_turn,
@@ -24,7 +24,12 @@ from agents.tools.agents.message_agents.attachments import (
 )
 from agents.tools.agents.message_agents.agent import message_agent
 from agents.tools.agents.url_check.agent import url_check_agent
-from agents.tools.agents.url_check.domain_check import check_domain_counts, domain_from_request
+from agents.tools.agents.url_check.domain_check import (
+    check_domain_counts,
+    domain_from_request,
+    download_assessment,
+    download_source_from_request,
+)
 from agents.tools.agents.retrieval.agent import retrieval_agent
 from agents.tools.agents.coordinator_agents.agent import (
     coordinator_agent,
@@ -137,11 +142,6 @@ _URL_ANALYSIS_CUES = (
     "is this a suspicious url",
     "is this url suspicious",
 )
-_FEATURE_VECTOR_CUES = (
-    "feature vector",
-    "precomputed features",
-    "pre-extracted features",
-)
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 _IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _QUESTION_START = re.compile(
@@ -160,7 +160,6 @@ _ROOT_USER_REQUEST_STATE_KEY = "root_user_request"
 _AGENT_STATUS = {
     "message_agent": "Analyzing message content\u2026",
     "url_check_agent": "Checking link reputation\u2026",
-    "file_classifier_agent": "Classifying file\u2026",
     "retrieval_agent": "Retrieving data\u2026",
 }
 
@@ -475,8 +474,6 @@ def route_request_to_agent(
         return "url_check_agent"
     if should_route_to_retrieval(request):
         return "retrieval_agent"
-    if any(cue in normalized for cue in _FEATURE_VECTOR_CUES):
-        return "file_classifier_agent"
     if is_knowledge_question(request):
         return "retrieval_agent"
     return semantic_knowledge_route(request)
@@ -803,6 +800,31 @@ class RequestRouter(Agent):
             )
             return
 
+        download_domain = None if attachment_present else download_source_from_request(request)
+        if download_domain:
+            yield _status_event(self.name, ctx.invocation_id, _AGENT_STATUS["url_check_agent"])
+            counts = await check_domain_counts(download_domain, ctx)
+            if counts:
+                yield Event(
+                    author=self.name,
+                    invocation_id=ctx.invocation_id,
+                    custom_metadata={"kind": "domain_stats", "domain": download_domain, **counts},
+                )
+            assessment = download_assessment(download_domain, counts)
+            yield Event(
+                author="url_check_agent",
+                invocation_id=ctx.invocation_id,
+                content=types.Content(role="model", parts=[types.Part(text=json.dumps(assessment))]),
+                turn_complete=True,
+            )
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(role="model", parts=[types.Part(text=assessment["assessment"])]),
+                turn_complete=True,
+            )
+            return
+
         target_name = route_request_to_agent(
             request,
             attachment_present=attachment_present,
@@ -940,7 +962,6 @@ root_agent = RequestRouter(
     sub_agents=[
         message_agent(),
         url_check_agent(),
-        file_classifier_agent(),
         retrieval_agent(),
         coordinator_agent(),
     ],

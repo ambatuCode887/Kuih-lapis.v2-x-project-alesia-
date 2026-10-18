@@ -36,11 +36,8 @@ out-of-fold report to `training/reports/`.
 
 Keep training code in this folder, save generated model files under
 `training/models/`, and put evaluation metrics under `training/reports/`.
-The ADK `file_classifier_agent` can score complete, pre-extracted feature
-vectors through `agents/tools/functions/classify/`. Raw-file feature
-extraction is not connected yet, so the tool must not be given guessed values
-or treated as having inspected an attachment. URL classification is not
-available. Qdrant RAG remains the separate retrieval and explanation layer.
+These models are not connected to the chat agent. Qdrant RAG remains the
+separate retrieval and explanation layer.
 
 Add the licensed files here before training. Generated `.joblib`, `.pkl`, and
 `.pickle` model files are ignored by Git.
