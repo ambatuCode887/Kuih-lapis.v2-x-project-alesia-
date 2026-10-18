@@ -45,7 +45,7 @@ async function openDownloadReview(review: DownloadReview): Promise<void> {
     }
     await browser.sidePanel.open({ tabId: activeTab.id });
   } catch (error) {
-    console.warn('The download review is pending; click the Cyber Assistant icon to view it.', error);
+    console.warn('The download review is pending; click the Project Alesia icon to view it.', error);
     await browser.action.setBadgeBackgroundColor({ color: '#ee5f5b' });
     await browser.action.setBadgeText({ text: '!' });
   }
@@ -187,9 +187,29 @@ async function updateReviewFilename(downloadId: number, filename: string): Promi
   await browser.storage.local.set({ [key]: { ...review, filename } });
 }
 
+/**
+ * Close the side panel. The panel is shared by every tab, so when "Expand" opens the
+ * full-page view the panel would otherwise stay open beside it. Turning the panel off
+ * closes it; turning it back on lets the toolbar icon open it again. This runs here,
+ * not in the panel itself, because the panel page is gone as soon as it closes.
+ */
+async function closeSidePanel(): Promise<void> {
+  await browser.sidePanel.setOptions({ enabled: false });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  await browser.sidePanel.setOptions({ enabled: true });
+}
+
 export default defineBackground(() => {
   // Clicking the toolbar icon opens the side panel.
   browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if ((message as { type?: string } | null)?.type !== 'close-side-panel') return;
+    return closeSidePanel().then(
+      () => ({ ok: true }),
+      (error: unknown) => ({ ok: false, error: String(error) }),
+    );
+  });
 
   browser.downloads.onCreated.addListener((item) => {
     void inspectDownload(item);
@@ -216,12 +236,12 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     browser.contextMenus.create({
       id: MENU_SELECTION,
-      title: 'Check selected text with Cyber Assistant',
+      title: 'Check selected text with Project Alesia',
       contexts: ['selection'],
     });
     browser.contextMenus.create({
       id: MENU_LINK,
-      title: 'Check this link with Cyber Assistant',
+      title: 'Check this link with Project Alesia',
       contexts: ['link'],
     });
   });

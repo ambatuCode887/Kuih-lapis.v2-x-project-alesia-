@@ -55,7 +55,11 @@ function VerdictIcon({ band }: { band: BandKey }) {
 
 function Scale({ score, active }: { score: number | null; active: BandKey }) {
   return (
-    <div className="scale" role="img" aria-label={`Risk ${active}`}>
+    <div
+      className="scale"
+      role="img"
+      aria-label={`Level of concern: ${SCALE.find((band) => band.key === active)?.label.toLowerCase() ?? 'not known'}`}
+    >
       <div className="scale-bar">
         {SCALE.map((band) => (
           <span
@@ -113,7 +117,7 @@ export default function VerdictSlip({ assessment, sourceText }: VerdictSlipProps
 
   return (
     <article className={`slip slip-${band.key}`} style={{ ['--band' as string]: band.color }}>
-      <header className="verdict">
+      <header className="verdict" role="status">
         <span className="verdict-icon">
           <VerdictIcon band={band.key} />
         </span>
@@ -157,7 +161,7 @@ export default function VerdictSlip({ assessment, sourceText }: VerdictSlipProps
         <div className="details-body">
           <Scale score={assessment.risk_score} active={band.key} />
           <p className="details-score">
-            Score {assessment.risk_score ?? '–'} out of 100 · Confidence {assessment.confidence}%
+            How worried to be: {assessment.risk_score ?? '–'} out of 100 · How sure we are: {assessment.confidence}%
           </p>
 
           {assessment.assessment && <p className="slip-summary">{assessment.assessment}</p>}
@@ -188,7 +192,7 @@ export default function VerdictSlip({ assessment, sourceText }: VerdictSlipProps
                   <li key={index} className="finding">
                     <span className="finding-no">{markedNumbers.has(index + 1) ? index + 1 : '•'}</span>
                     <div>
-                      <strong className="finding-type">
+                      <strong className={`finding-type${item.type ? '' : ' mono'}`}>
                         {(item.type ?? item.indicator ?? 'signal').replace(/_/g, ' ')}
                         {item.verdict ? ` · ${item.verdict}` : ''}
                       </strong>
@@ -198,7 +202,7 @@ export default function VerdictSlip({ assessment, sourceText }: VerdictSlipProps
                       )}
                       {item.report_link && (
                         <a href={item.report_link} target="_blank" rel="noreferrer">
-                          Open full report
+                          Open full report (opens a new tab)
                         </a>
                       )}
                     </div>

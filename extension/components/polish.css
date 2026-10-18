@@ -65,7 +65,7 @@
 }
 
 .starter:hover {
-  border-color: var(--pine);
+  border-color: var(--pine-text, var(--pine));
   box-shadow: var(--shadow);
   transform: none;
 }
@@ -73,7 +73,7 @@
 .starter-icon {
   background: color-mix(in srgb, var(--pine) 12%, var(--card));
   box-shadow: none;
-  color: var(--pine);
+  color: var(--pine-text, var(--pine));
 }
 
 /* ───────── Conversation and message box ───────── */
@@ -89,7 +89,7 @@
 }
 
 .composer:focus-within {
-  border-color: var(--pine);
+  border-color: var(--pine-text, var(--pine));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pine) 22%, transparent);
 }
 

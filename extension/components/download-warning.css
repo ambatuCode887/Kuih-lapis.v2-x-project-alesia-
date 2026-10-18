@@ -1,3 +1,4 @@
+/* Uses the app's theme tokens (chat.css) so it follows light and dark. */
 .download-warning-overlay {
   position: fixed;
   z-index: 1000;
@@ -9,111 +10,122 @@
   gap: 16px;
   overflow: auto;
   padding: 16px;
-  background: rgba(3, 9, 7, 0.82);
-  color: #e6efec;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--ink);
 }
 
 .warning {
-  --warning-color: #e0b24a;
+  --warning-color: var(--risk-moderate);
   box-sizing: border-box;
   width: min(100%, 520px);
   max-height: 100%;
   overflow: auto;
   padding: 24px;
-  border: 1px solid #3a514a;
+  border: 2px solid var(--line-strong);
+  border-left: 8px solid var(--warning-color);
   border-radius: 16px;
-  background: #0b1210;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 1.0625rem;
+  line-height: 1.55;
 }
 
 .warning--danger {
-  --warning-color: #ee5f5b;
+  --warning-color: var(--risk-critical);
 }
 
 .warning__badge {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   place-items: center;
-  border: 1px solid var(--warning-color);
+  border: 2px solid var(--warning-color);
   border-radius: 50%;
   color: var(--warning-color);
-  font-size: 26px;
-  font-weight: 700;
 }
 
-.warning__eyebrow {
-  margin: 22px 0 6px;
-  color: #8aa49c;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.warning__badge svg {
+  width: 28px;
+  height: 28px;
 }
 
-.warning h1 {
-  margin: 0;
-  font-size: 26px;
+.warning h2 {
+  margin: 16px 0 0;
+  font-size: 1.6rem;
   line-height: 1.2;
+}
+
+.warning p {
+  margin: 12px 0 0;
 }
 
 .warning__file {
   overflow-wrap: anywhere;
-  margin: 18px 0 4px;
   font-weight: 700;
 }
 
-.warning__domain,
-.warning__details,
-.warning__caveat {
-  color: #b2c4bf;
-}
-
-.warning__details,
-.warning__caveat {
-  line-height: 1.55;
-}
-
-.warning__caveat {
-  padding: 12px;
-  border-left: 3px solid var(--warning-color);
-  background: #111b18;
-  font-size: 13px;
+.warning__muted {
+  color: var(--ink-2);
 }
 
 .warning__actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 16px;
   margin-top: 24px;
 }
 
 .warning__actions button {
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid #3a514a;
-  border-radius: 8px;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 700;
   font-family: inherit;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+/* Safe choice: big, solid jade. */
+.warning__cancel {
+  width: 100%;
+  border: 2px solid var(--pine);
+  background: var(--pine);
+  color: var(--pine-ink);
+  font-size: 1.2rem;
+}
+
+/* Risky choice: quiet text-style button, still 44px+ and clearly a button. */
+.warning__proceed {
+  align-self: center;
+  min-height: 48px;
+  border: 2px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.warning__actions button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.warning__actions button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
 }
 
 .warning__actions button:disabled {
   cursor: wait;
-  opacity: 0.65;
-}
-
-.warning__cancel {
-  background: #1b2924;
-  color: #e6efec;
-}
-
-.warning__proceed {
-  border-color: var(--warning-color) !important;
-  background: var(--warning-color);
-  color: #17130b;
+  opacity: 0.7;
 }
 
 .warning__error {
-  color: #ff8d87;
+  color: var(--risk-critical);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warning__actions button {
+    transition: none;
+  }
 }

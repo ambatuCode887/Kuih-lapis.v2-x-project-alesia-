@@ -61,6 +61,32 @@ export const PlusIcon = (props: IconProps) => (
   </Base>
 );
 
+export const ChevronsLeftIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />
+  </Base>
+);
+
+export const ChevronsRightIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
+  </Base>
+);
+
+export const PencilIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M4 20h4L19 9l-4-4L4 16v4z" />
+    <path d="M13.5 6.5l4 4" />
+  </Base>
+);
+
+export const TrashIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" />
+    <path d="M10 11v5M14 11v5" />
+  </Base>
+);
+
 export const ArrowIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M5 12h14M13 6l6 6-6 6" />

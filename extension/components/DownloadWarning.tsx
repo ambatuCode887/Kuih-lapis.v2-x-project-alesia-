@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AlertIcon, QuestionIcon } from './Icons';
 import './download-warning.css';
 
 const REVIEW_PREFIX = 'download-review-';
@@ -108,7 +109,10 @@ export default function DownloadWarning() {
 
   return (
     <div className="download-warning-overlay">
-      {error && <p className="warning__error" role="alert">{error}</p>}
+      {/* With a dialog open, the error shows inside it. Showing it here too would read it out twice. */}
+      {error && reviews.length === 0 && (
+        <p className="warning__error" role="alert">{error}</p>
+      )}
       {reviews.map((review) => {
         const malicious = review.status === 'malicious';
         const busy = busyId === review.downloadId;
@@ -121,31 +125,32 @@ export default function DownloadWarning() {
             aria-labelledby={`download-warning-title-${review.downloadId}`}
           >
             <div className="warning__badge" aria-hidden="true">
-              {malicious ? '!' : '?'}
+              {malicious ? <AlertIcon /> : <QuestionIcon />}
             </div>
-            <p className="warning__eyebrow">Cyber Assistant · Download check</p>
-            <h1 id={`download-warning-title-${review.downloadId}`}>
-              {malicious
-                ? 'This file may be malicious'
-                : 'This download could not be verified'}
-            </h1>
-            <p className="warning__file">{review.filename}</p>
+            <h2 id={`download-warning-title-${review.downloadId}`}>
+              {malicious ? 'This file may not be safe' : 'We could not check this file'}
+            </h2>
+            <p className="warning__file mono">{review.filename}</p>
             {review.domain && (
-              <p className="warning__domain">Source domain: {review.domain}</p>
+              <p className="warning__muted">
+                From: <span className="mono">{review.domain}</span>
+              </p>
             )}
-            <p className="warning__details">{review.details}</p>
-            <p className="warning__caveat">
-              This check evaluates the source domain only; the downloaded file’s
-              contents have not been scanned.
+            <p>
+              {malicious
+                ? 'The website it comes from has been reported as harmful. Stopping is the safest choice.'
+                : 'We could not tell if the website is safe. If you are not sure, stop.'}
             </p>
+            <p className="warning__muted">We checked the website only, not the file itself.</p>
             <div className="warning__actions">
               <button
+                autoFocus
                 className="warning__cancel"
                 disabled={busy}
                 onClick={() => choose(review.downloadId, 'cancel')}
                 type="button"
               >
-                Cancel download
+                Stop this download
               </button>
               <button
                 className="warning__proceed"

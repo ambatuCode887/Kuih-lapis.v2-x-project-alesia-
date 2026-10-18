@@ -2,26 +2,29 @@
 /* Dark theme: calm neutral-green surfaces, jade for safety and the brand,
    warm red and amber reserved for warnings. */
 :root {
-  --paper: #0b1210;      /* page background */
-  --card: #111b18;       /* raised surfaces */
-  --ink: #e6efec;
-  --ink-2: #8aa49c;
-  --line: #223630;
-  --pine: #2bc48a;       /* jade: primary and "safe" */
-  --pine-ink: #04130d;   /* text on jade */
+  --paper: #150b0f;      /* page background (same as website) */
+  --card: #201218;       /* raised surfaces */
+  --ink: #f7e8ec;
+  --ink-2: #c9a9b2;
+  --line: #3a2229;
+  --line-strong: #8a6672; /* control and card edges, 3:1 or better */
+  --pine: #e5566d;       /* jade: primary and "safe" */
+  --pine-ink: #1a0a0f;   /* text on jade */
+  --pine-text: #ff93a5;
+  --teal: #5cc8e8;
   --glow: transparent;   /* kept so older rules still resolve; no glow is used */
   --mark: rgba(224, 178, 74, 0.22);
   --mark-edge: #e0b24a;
   --mark-ink: #f6e9c8;
 
   --risk-low: #2bc48a;
-  --risk-moderate: #e0b24a;
-  --risk-high: #f08a4b;
-  --risk-critical: #ee5f5b;
-  --risk-unknown: #7d968f;
+  --risk-moderate: #f7c25c;
+  --risk-high: #ffa866;
+  --risk-critical: #ff9a90;
+  --risk-unknown: #c9a9b2;
 
-  --font-display: 'Instrument Sans Variable', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Instrument Sans Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
 
   --radius: 12px;
@@ -29,27 +32,84 @@
   color-scheme: dark;
 }
 
-/* Light theme: white surfaces and a deeper jade so text stays readable. */
+/* Light theme ("Rose Dawn"): warm cream background, indigo text, dusty-rose accent.
+   Jade is kept for "safe" results; red, amber and orange stay reserved for warnings. */
 :root[data-theme='light'] {
-  --paper: #f3f7f5;
-  --card: #ffffff;
-  --ink: #12201c;
-  --ink-2: #54706a;
-  --line: #d6e2de;
-  --pine: #0e8a5f;
-  --pine-ink: #ffffff;
-  --mark: rgba(224, 168, 40, 0.3);
-  --mark-edge: #c98a00;
-  --mark-ink: #3b2a00;
+  --paper: #faf4ed;
+  --card: #fffaf3;
+  --ink: #575279;
+  --ink-2: #66627f;
+  --line: #e4d9cc;
+  --line-strong: #8a859e;
+  --pine: #d7827e;        /* accent: fills, glows, focus */
+  --pine-ink: #2a1620;    /* text on the accent: 6:1 */
+  --pine-text: #a8505b;   /* accent used as text or icons on cream: 4.8:1 */
+  --teal: #2f7f8c;
+  --mark: rgba(215, 130, 126, 0.25);
+  --mark-edge: #a8505b;
+  --mark-ink: #3b1f2b;
 
-  --risk-low: #0e8a5f;
-  --risk-moderate: #a87200;
-  --risk-high: #cc560f;
-  --risk-critical: #c4332c;
-  --risk-unknown: #66807a;
+  --risk-low: #0d7c55;
+  --risk-moderate: #8a5600;
+  --risk-high: #b04400;
+  --risk-critical: #b42318;
+  --risk-unknown: #66627f;
 
-  --shadow: 0 1px 2px rgba(18, 32, 28, 0.08), 0 4px 14px rgba(18, 32, 28, 0.06);
+  --shadow: 0 1px 2px rgba(87, 82, 121, 0.1), 0 4px 14px rgba(87, 82, 121, 0.08);
   color-scheme: light;
+}
+
+/* Lilac theme: cool grey-lavender background, slate text, violet accent. */
+:root[data-theme='lilac'] {
+  --paper: #eff1f5;
+  --card: #fafbfd;
+  --ink: #4c4f69;
+  --ink-2: #5c5f77;
+  --line: #ccd0da;
+  --line-strong: #7c7f93;
+  --pine: #8839ef;        /* accent */
+  --pine-ink: #ffffff;    /* text on the accent: 5.4:1 */
+  --pine-text: #7a2fdc;   /* accent as text on the background: 5.7:1 */
+  --teal: #1f6f80;
+  --mark: rgba(136, 57, 239, 0.18);
+  --mark-edge: #7a2fdc;
+  --mark-ink: #2d1b4e;
+
+  --risk-low: #0d7c55;
+  --risk-moderate: #8a5600;
+  --risk-high: #b04400;
+  --risk-critical: #b42318;
+  --risk-unknown: #5c5f77;
+
+  --shadow: 0 1px 2px rgba(76, 79, 105, 0.1), 0 4px 14px rgba(76, 79, 105, 0.08);
+  color-scheme: light;
+}
+
+/* "Dark" theme: true black, white text, neutral grey accents.
+   Jade, amber, orange and red keep their meanings for safe and warning results. */
+:root[data-theme='black'] {
+  --paper: #000000;
+  --card: #0f0f0f;
+  --ink: #ffffff;
+  --ink-2: #a3a3a3;
+  --line: #262626;
+  --line-strong: #737373;
+  --pine: #d4d4d4;        /* accent: light grey */
+  --pine-ink: #0a0a0a;    /* text on the accent: 12:1 */
+  --pine-text: #e5e5e5;
+  --teal: #9ca3af;
+  --mark: rgba(255, 255, 255, 0.16);
+  --mark-edge: #d4d4d4;
+  --mark-ink: #ffffff;
+
+  --risk-low: #2bc48a;
+  --risk-moderate: #f7c25c;
+  --risk-high: #ffa866;
+  --risk-critical: #ff9a90;
+  --risk-unknown: #a3a3a3;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 4px 14px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
 }
 
 /* ───────── Base ───────── */
@@ -323,7 +383,7 @@ a:focus-visible {
 }
 
 .starter:hover {
-  border-color: var(--pine);
+  border-color: var(--pine-text, var(--pine));
   transform: translateX(2px);
 }
 
@@ -335,7 +395,7 @@ a:focus-visible {
   flex-shrink: 0;
   border-radius: 10px;
   background: var(--paper);
-  color: var(--pine);
+  color: var(--pine-text, var(--pine));
 }
 
 .starter-text {
@@ -513,7 +573,7 @@ a:focus-visible {
 }
 
 .composer:focus-within {
-  border-color: var(--pine);
+  border-color: var(--pine-text, var(--pine));
 }
 
 .composer textarea {
@@ -784,7 +844,7 @@ a:focus-visible {
 }
 
 .finding a {
-  color: var(--pine);
+  color: var(--pine-text, var(--pine));
 }
 
 .todo {
