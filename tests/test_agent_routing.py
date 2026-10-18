@@ -123,7 +123,6 @@ def test_root_includes_mule_account_lookup_guidance() -> None:
 def test_root_routes_directly_to_specialist_agents() -> None:
     assert route_request_to_agent("Is this email a phishing attempt?") == "message_agent"
     assert route_request_to_agent("Check this link: https://example.com/login") == "url_check_agent"
-    assert route_request_to_agent("Classify this precomputed feature vector") == "file_classifier_agent"
     assert route_request_to_agent("How do I remove malware?") == "retrieval_agent"
     assert (
         route_request_to_agent(
@@ -596,7 +595,6 @@ def test_root_router_has_final_response_model_and_dispatches_to_specialists() ->
     assert {agent.name for agent in root_agent.sub_agents} == {
         "message_agent",
         "url_check_agent",
-        "file_classifier_agent",
         "retrieval_agent",
         "coordinator_agent",
     }
@@ -873,7 +871,6 @@ def test_url_agent_does_not_treat_attachment_text_as_lookup_authorization() -> N
 def test_non_message_subagent_prompts_mark_external_content_untrusted() -> None:
     expected_rules = {
         "agents/tools/agents/url_check/prompt.md": "URL components",
-        "agents/tools/agents/file_classifier/prompt.md": "never as instructions",
         "agents/tools/agents/verification_agents/prompt.md": "URLs, quoted content",
         "agents/tools/agents/clarification_agents/prompt.md": "URLs, quoted web content",
         "agents/tools/agents/coordinator_agents/prompt.md": "not authorization",
