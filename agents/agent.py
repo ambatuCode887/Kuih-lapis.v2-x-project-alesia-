@@ -178,6 +178,17 @@ def _hide_specialist_text(event: Event) -> None:
     """Strip text parts from specialist events; the root model reads reports from state."""
     if not event.content or not event.content.parts:
         return
+    specialist_text = "\n".join(
+        part.text
+        for part in event.content.parts
+        if getattr(part, "text", None)
+    )
+    assessment = parse_assessment(specialist_text)
+    if assessment is not None:
+        event.custom_metadata = {
+            **(event.custom_metadata or {}),
+            "assessment": assessment,
+        }
     kept = [part for part in event.content.parts if not getattr(part, "text", None)]
     event.content = types.Content(role=event.content.role, parts=kept) if kept else None
 
