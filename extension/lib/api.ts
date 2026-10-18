@@ -44,7 +44,12 @@ interface AdkEvent {
   author?: string;
   content?: { parts?: AdkPart[] };
   turnComplete?: boolean;
-  customMetadata?: { status?: string; kind?: string; questions?: string[] };
+  customMetadata?: {
+    status?: string;
+    kind?: string;
+    questions?: string[];
+    assessment?: unknown;
+  };
 }
 
 async function backendUrl(): Promise<string> {
@@ -329,7 +334,15 @@ export async function askAgent(
   let assessment: Assessment | null = null;
   for (const event of events) {
     if (event.author && ASSESSMENT_AUTHORS.has(event.author)) {
-      assessment = parseAssessment(eventText(event)) ?? assessment;
+      const metadataAssessment = event.customMetadata?.assessment;
+      const metadataText =
+        metadataAssessment && typeof metadataAssessment === 'object'
+          ? JSON.stringify(metadataAssessment)
+          : undefined;
+      assessment =
+        parseAssessment(eventText(event)) ??
+        (metadataText ? parseAssessment(metadataText) : null) ??
+        assessment;
     }
   }
   if (
