@@ -1,0 +1,368 @@
+/* Visual layer: frosted glass, jade gradients and gentle motion.
+   Loaded last. Delete this file and its import in Chat.tsx to undo it all.
+
+   Accessibility guardrails:
+   - Glass fills stay 70%+ opaque so text keeps 4.5:1 contrast.
+   - No purple. Gradients stay in the jade / teal family.
+   - Text is never placed on a gradient that drops below AA.
+   - Motion only runs when the user has not asked for reduced motion.
+   - Transparency is switched off for "reduce transparency" and high contrast. */
+
+:root {
+  --glass-bg: rgba(32, 18, 24, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-shine: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --blur: 16px;
+  --btn-from: #f07085;
+  --btn-to: #e5566d;
+  --bg-a: rgba(229, 86, 109, 0.26);
+  --bg-b: rgba(56, 160, 190, 0.2);
+}
+
+:root[data-theme='light'] {
+  --glass-bg: rgba(255, 250, 243, 0.74);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+  --glass-shine: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 8px 28px rgba(87, 82, 121, 0.14);
+  --btn-from: #e8a09b;
+  --btn-to: #d7827e;
+  --bg-a: rgba(215, 130, 126, 0.3);
+  --bg-b: rgba(86, 148, 159, 0.22);
+}
+
+:root[data-theme='lilac'] {
+  --glass-bg: rgba(250, 251, 253, 0.74);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+  --glass-shine: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 8px 28px rgba(76, 79, 105, 0.14);
+  --btn-from: #7a2fdc;
+  --btn-to: #8839ef;
+  --bg-a: rgba(136, 57, 239, 0.22);
+  --bg-b: rgba(32, 159, 181, 0.22);
+}
+
+:root[data-theme='black'] {
+  --glass-bg: rgba(15, 15, 15, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-shine: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  --btn-from: #f5f5f5;
+  --btn-to: #bdbdbd;
+  --bg-a: rgba(255, 255, 255, 0.07);
+  --bg-b: rgba(163, 163, 163, 0.07);
+}
+
+/* ───────── Background: soft jade and teal light ───────── */
+.app {
+  background:
+    radial-gradient(60rem 36rem at 8% -10%, var(--bg-a), transparent 60%),
+    radial-gradient(50rem 32rem at 100% 100%, var(--bg-b), transparent 60%),
+    var(--paper);
+}
+
+.chat,
+.scroll {
+  background: transparent;
+}
+
+/* ───────── Frosted glass surfaces ───────── */
+.rail,
+.bar,
+.composer,
+.starter,
+.slip,
+.welcome-help,
+.glass {
+  background: var(--glass-bg);
+  border-color: var(--line-strong);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+  backdrop-filter: blur(var(--blur)) saturate(140%);
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-bottom: 1px solid var(--glass-edge);
+  box-shadow: none;
+}
+
+.rail {
+  border-right: 1px solid var(--glass-edge);
+  box-shadow: none;
+}
+
+.welcome-help {
+  background: color-mix(in srgb, var(--risk-moderate) 12%, var(--glass-bg));
+}
+
+/* ───────── Jade gradient buttons ───────── */
+.rail-new,
+.send:not(:disabled),
+.warning__cancel {
+  background: linear-gradient(135deg, var(--btn-from), var(--btn-to));
+  color: var(--pine-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 6px 16px color-mix(in srgb, var(--btn-to) 35%, transparent);
+}
+
+.welcome-emblem {
+  background: linear-gradient(145deg, var(--btn-from), var(--btn-to));
+}
+
+/* ───────── Layout: centred, roomy start screen in the full tab ───────── */
+.welcome {
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.app-tab .welcome {
+  text-align: center;
+}
+
+.app-tab .welcome-emblem,
+.app-tab .welcome-lead {
+  margin-inline: auto;
+}
+
+.app-tab .welcome-flow {
+  justify-content: center;
+}
+
+.starters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 14px;
+}
+
+/* ───────── Motion (only if the user allows it) ───────── */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes halo {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--btn-from) 45%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 22px transparent;
+    }
+  }
+
+  .welcome > * {
+    animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .welcome > :nth-child(2) { animation-delay: 0.05s; }
+  .welcome > :nth-child(3) { animation-delay: 0.1s; }
+  .welcome > :nth-child(4) { animation-delay: 0.15s; }
+  .welcome > :nth-child(5) { animation-delay: 0.2s; }
+  .welcome > :nth-child(6) { animation-delay: 0.25s; }
+  .welcome > :nth-child(7) { animation-delay: 0.3s; }
+
+  /* The one attention-getter: a single soft ring on the shield, twice. */
+  .welcome-emblem {
+    animation:
+      rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both,
+      halo 1.8s ease-out 0.6s 2;
+  }
+
+  .turn {
+    animation: rise 0.35s ease-out both;
+  }
+
+  .slip {
+    animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .rail-new,
+  .send,
+  .starter,
+  .composer {
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease,
+      filter 0.18s ease;
+  }
+
+  .rail-new:hover,
+  .send:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .rail-new:active,
+  .send:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+/* ───────── Fallbacks: solid surfaces when glass would hurt ───────── */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .rail,
+  .bar,
+  .composer,
+  .starter,
+  .slip,
+  .welcome-help,
+  .glass {
+    background: var(--card);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .rail,
+  .bar,
+  .composer,
+  .starter,
+  .slip,
+  .welcome-help,
+  .glass {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .app {
+    background: var(--paper);
+  }
+}
+
+.shield-scan {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--pine-text, var(--pine));
+}
+
+/* ───────── Same look as the website: colour-changing hovers, drifting light, scroll effects ───────── */
+
+/* Cards that turn their own colour on hover or keyboard focus. Set --tint on the element. */
+.hover-tint {
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+.hover-tint:hover,
+.hover-tint:focus-visible {
+  background: color-mix(in srgb, var(--tint) 14%, var(--card));
+  border-color: var(--tint);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--tint) 30%, transparent);
+}
+
+/* Colour shifts on the other controls too. */
+.rail-item,
+.attach,
+.details > summary,
+.reply-more summary {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+.rail-item:hover {
+  background: color-mix(in srgb, var(--pine) 14%, transparent);
+}
+.attach:hover,
+.details > summary:hover,
+.reply-more summary:hover {
+  background: color-mix(in srgb, var(--pine) 12%, var(--card));
+  border-color: var(--pine-text, var(--pine));
+}
+.rail-new:hover,
+.send:hover:not(:disabled) {
+  background: linear-gradient(135deg, #38a0be, var(--btn-to));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hover-tint:hover {
+    transform: translateY(-4px);
+  }
+
+  /* Soft light drifting behind the glass, like on the website. */
+  .app::before,
+  .app::after {
+    content: '';
+    position: fixed;
+    z-index: 0;
+    border-radius: 50%;
+    filter: blur(70px);
+    pointer-events: none;
+  }
+  .app::before {
+    top: -10%;
+    left: -10%;
+    width: 28rem;
+    height: 28rem;
+    background: color-mix(in srgb, var(--pine) 30%, transparent);
+    animation: drift-a 22s ease-in-out infinite alternate;
+  }
+  .app::after {
+    right: -10%;
+    bottom: -10%;
+    width: 26rem;
+    height: 26rem;
+    background: rgba(56, 160, 190, 0.28);
+    animation: drift-b 26s ease-in-out infinite alternate;
+  }
+  .rail,
+  .chat {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes drift-a {
+    to { transform: translate(14vw, 18vh) scale(1.15); }
+  }
+  @keyframes drift-b {
+    to { transform: translate(-16vw, -14vh) scale(1.1); }
+  }
+
+  /* Scroll-driven effects (Chrome supports these natively). */
+  @supports (animation-timeline: scroll()) {
+    .scroll {
+      scroll-timeline: --chat block;
+    }
+    .chat {
+      timeline-scope: --chat;
+    }
+    /* A thin progress bar under the header fills as the chat scrolls. */
+    .bar {
+      position: sticky;
+    }
+    .bar::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 -2px;
+      height: 3px;
+      transform-origin: left;
+      background: linear-gradient(90deg, var(--pine), #38a0be);
+      animation: grow linear both;
+      animation-timeline: --chat;
+    }
+    @keyframes grow {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    /* Each message, result card and list item eases in as it scrolls into view. */
+    .turn,
+    .slip,
+    .steps .todo li,
+    .welcome > * {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(22px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+  }
+}

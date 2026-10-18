@@ -1,14 +1,14 @@
 cd extension
 npm run dev
 to restart the chrome browser press o + enter
-go chrome and click on the puzzle button and select "Cyber Assistant"
-"Cyber Assistant" is our extenstion
+go chrome and click on the puzzle button and select "Project Alesia"
+"Project Alesia" is our extenstion
 
 ## Browser download checks
 
 The extension pauses new downloads and checks the source domain with the existing
 VirusTotal-backed URL reputation workflow. A domain reported as malicious shows a
-warning inside the Cyber Assistant side panel with **Download anyway** and
+warning inside the Project Alesia side panel with **Download anyway** and
 **Cancel download** actions. A clean reputation result resumes the download
 without showing a warning. If the reputation check is inconclusive or unavailable,
 the download stays paused and the same actions are shown so the user can decide.

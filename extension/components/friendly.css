@@ -251,7 +251,7 @@ a:focus-visible {
 }
 
 .attach:hover {
-  border-color: var(--pine);
+  border-color: var(--pine-text, var(--pine));
 }
 
 .send {
@@ -362,7 +362,7 @@ a:focus-visible {
   min-height: 52px;
   margin-top: 18px;
   background: transparent;
-  color: var(--pine);
+  color: var(--pine-text, var(--pine));
   border: 2px solid var(--pine);
   border-radius: 12px;
   font-size: 1.1rem;
@@ -433,6 +433,28 @@ a:focus-visible {
   font-size: 0.95rem;
 }
 
+/* Nothing in the result is smaller than 17px. */
+.details-score,
+.slip-summary,
+.slip-label,
+.scale-labels,
+.received,
+.finding,
+.finding-evidence,
+.slip-foot {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+.scale-labels {
+  font-weight: 600;
+}
+
+.details > summary,
+.reply-more summary {
+  border-color: var(--line-strong);
+}
+
 @media (max-width: 380px) {
   .verdict-icon {
     width: 64px;
@@ -450,3 +472,121 @@ a:focus-visible {
   gap: 8px;
 }
 
+
+/* ───────── Start screen: a warmer first impression ───────── */
+.welcome {
+  position: relative;
+  isolation: isolate;
+  padding: 28px 0 8px;
+}
+
+/* Soft jade glow behind the heading. Flat tint, no gradient text. */
+.welcome::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -40px -24px auto;
+  height: 260px;
+  background: radial-gradient(
+    ellipse at 30% 0%,
+    color-mix(in srgb, var(--pine) 16%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.welcome-emblem {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  background: var(--pine);
+  color: var(--pine-ink);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--pine) 32%, transparent);
+}
+
+.starter {
+  border: 2px solid var(--line-strong);
+  border-radius: 16px;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.starter:hover {
+  border-color: var(--pine-text, var(--pine));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--pine) 18%, transparent);
+  transform: translateY(-2px);
+}
+
+.starter-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.welcome-tip {
+  font-size: 1.0625rem;
+  color: var(--ink-2);
+}
+
+/* "Paste it → We check it → You know what to do" */
+.welcome-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-flow li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.welcome-flow li + li::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-top: 2.5px solid var(--ink-2);
+  border-right: 2.5px solid var(--ink-2);
+  transform: rotate(45deg);
+}
+
+/* Calm, noticeable, never alarming: amber note, not red. */
+.welcome-help {
+  margin: 22px 0 0;
+  padding: 14px 16px;
+  border: 2px solid var(--risk-moderate);
+  border-left-width: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--risk-moderate) 10%, var(--card));
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+/* A disabled Check button must still be readable. */
+.send:disabled {
+  background: color-mix(in srgb, var(--pine) 22%, var(--card));
+  border: 2px solid var(--line-strong);
+  color: var(--ink);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.composer {
+  border: 2px solid var(--line-strong);
+  border-radius: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starter,
+  .starter:hover {
+    transition: none;
+    transform: none;
+  }
+}

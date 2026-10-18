@@ -1,0 +1,21 @@
+/* Tailwind without its global reset ("preflight"), so the existing CSS keeps working.
+   Colours come from the app's own theme tokens (chat.css), so light and dark follow. */
+@import 'tailwindcss/theme.css' layer(theme);
+/* Utilities are left un-layered on purpose: the older plain CSS is un-layered too,
+   so a class like `text-on-jade` correctly beats a rule like `button { color: inherit }`. */
+@import 'tailwindcss/utilities.css';
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-jade: var(--pine);
+  --color-on-jade: var(--pine-ink);
+  --color-warn: var(--risk-moderate);
+  --color-danger: var(--risk-critical);
+  --font-sans: var(--font-body);
+  --radius-card: 16px;
+}

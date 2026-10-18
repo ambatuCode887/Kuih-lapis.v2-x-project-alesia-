@@ -1,0 +1,103 @@
+/* Shared design tokens for the website (web/) and the extension (extension/).
+   Jade means safe. Red, amber and orange are only for warnings.
+   Every text pair here was checked for WCAG AA (4.5:1). */
+
+:root {
+  /* "Rose Dawn": warm cream background, indigo text, dusty-rose accent. */
+  --paper: #faf4ed;
+  --card: #fffaf3;
+  --ink: #575279;
+  --ink-2: #66627f;
+  --line: #e4d9cc;
+  --line-strong: #8a859e;
+  --pine: #d7827e;       /* accent: fills and glows */
+  --pine-ink: #2a1620;   /* text on the accent: 6:1 */
+  --pine-text: #a8505b;  /* accent as text or icons on cream: 4.8:1 */
+  --teal: #2f7f8c;       /* second accent, 4.6:1 on cream */
+  --risk-low: #0d7c55;   /* jade stays for "safe" */
+  --risk-moderate: #8a5600;
+  --risk-high: #b04400;
+  --risk-critical: #b42318;
+  --focus: #0b57d0;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #150b0f;
+    --card: #201218;
+    --ink: #f7e8ec;
+    --ink-2: #c9a9b2;
+    --line: #3a2229;
+    --line-strong: #8a6672;
+    --pine: #e5566d;
+    --pine-ink: #1a0a0f;
+    --pine-text: #ff93a5;
+    --teal: #5cc8e8;
+    --risk-low: #2bc48a;
+    --risk-moderate: #f7c25c;
+    --risk-high: #ffa866;
+    --risk-critical: #ff9a90;
+    --focus: #8ab4ff;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #150b0f;
+    --card: #201218;
+    --ink: #f7e8ec;
+    --ink-2: #c9a9b2;
+    --line: #3a2229;
+    --line-strong: #8a6672;
+    --pine: #e5566d;
+    --pine-ink: #1a0a0f;
+    --pine-text: #ff93a5;
+    --teal: #5cc8e8;
+    --risk-low: #2bc48a;
+    --risk-moderate: #f7c25c;
+    --risk-high: #ffa866;
+    --risk-critical: #ff9a90;
+    --focus: #8ab4ff;
+    color-scheme: dark;
+}
+
+:root[data-theme='lilac'] {
+  /* "Lilac": cool grey-lavender background, slate text, violet accent. */
+  --paper: #eff1f5;
+  --card: #fafbfd;
+  --ink: #4c4f69;
+  --ink-2: #5c5f77;
+  --line: #ccd0da;
+  --line-strong: #7c7f93;
+  --pine: #8839ef;
+  --pine-ink: #ffffff;
+  --pine-text: #7a2fdc;
+  --teal: #1f6f80;
+  --risk-low: #0d7c55;
+  --risk-moderate: #8a5600;
+  --risk-high: #b04400;
+  --risk-critical: #b42318;
+  --focus: #0b57d0;
+  color-scheme: light;
+}
+
+:root[data-theme='black'] {
+  /* "Dark": true black, white text, neutral grey accents. */
+  --paper: #000000;
+  --card: #0f0f0f;
+  --ink: #ffffff;
+  --ink-2: #a3a3a3;
+  --line: #262626;
+  --line-strong: #737373;
+  --pine: #d4d4d4;
+  --pine-ink: #0a0a0a;
+  --pine-text: #e5e5e5;
+  --teal: #9ca3af;
+  --risk-low: #2bc48a;
+  --risk-moderate: #f7c25c;
+  --risk-high: #ffa866;
+  --risk-critical: #ff9a90;
+  --focus: #8ab4ff;
+  color-scheme: dark;
+}

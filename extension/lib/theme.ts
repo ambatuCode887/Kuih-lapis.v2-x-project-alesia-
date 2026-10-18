@@ -1,23 +1,24 @@
 import { useEffect, useState } from 'react';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'lilac' | 'black';
 
 const THEME_KEY = 'theme';
 
-function systemTheme(): Theme {
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-}
-
 function isTheme(value: unknown): value is Theme {
-  return value === 'light' || value === 'dark';
+  return value === 'light' || value === 'dark' || value === 'lilac' || value === 'black';
 }
 
 /**
- * Light or dark mode. Starts from the system setting until the user picks one,
- * then remembers the choice and keeps the side panel and full tab in step.
+ * Light or dark mode. Light ("Rose Dawn") is the default, to match the website, until the user
+ * picks one with the toggle. The choice is remembered and shared between the
+ * side panel and the full tab.
  */
-export function useTheme(): { theme: Theme; toggleTheme: () => void } {
-  const [theme, setTheme] = useState<Theme>(systemTheme);
+export function useTheme(): {
+  theme: Theme;
+  toggleTheme: () => void;
+  chooseTheme: (next: Theme) => void;
+} {
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     browser.storage.local.get(THEME_KEY).then((result) => {
@@ -43,5 +44,10 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
     browser.storage.local.set({ [THEME_KEY]: next });
   }
 
-  return { theme, toggleTheme };
+  function chooseTheme(next: Theme) {
+    setTheme(next);
+    browser.storage.local.set({ [THEME_KEY]: next });
+  }
+
+  return { theme, toggleTheme, chooseTheme };
 }
