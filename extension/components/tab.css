@@ -1,0 +1,162 @@
+/* Full tab: flat cream look (no floating panes, glow or sheen). */
+.app-tab {
+  background: var(--paper);
+}
+.app-tab::before,
+.app-tab::after,
+.app-tab .chat::after {
+  display: none;
+}
+.app-tab .glass-bg {
+  display: none;
+}
+.app-tab .rail,
+.app-tab .bar {
+  background: var(--paper);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.app-tab .composer {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.app-tab .rail-new::after,
+.app-tab .send:not(:disabled)::after {
+  display: none;
+}
+
+/* Full tab start screen: centred title, slim pill input, plain action list below. */
+.app-tab .chat--start {
+  box-sizing: border-box;
+  justify-content: center;
+  padding-bottom: 6vh;
+}
+.app-tab .chat--start .scroll {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.app-tab .chat--start .thread {
+  min-height: 0;
+  padding-bottom: 8px;
+}
+.app-tab .chat--start .welcome-hero {
+  padding: 0;
+  text-align: center;
+}
+.app-tab .chat--start .welcome-lead {
+  display: none;
+}
+
+.app-tab .composer.is-start {
+  max-width: 712px;
+  margin: 0 auto 16px;
+  padding: 6px 8px;
+  border-width: 1px;
+  border-radius: 999px;
+}
+.app-tab .composer.is-start::before {
+  border-radius: 999px;
+}
+.app-tab .composer.is-start {
+  border-width: 1px;
+}
+.app-tab .composer.is-start .composer-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+}
+.app-tab .composer.is-start textarea {
+  order: 0;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  /* Beats the auto-grow height the script writes inline. */
+  height: 40px !important;
+  min-height: 40px;
+  max-height: 40px;
+  margin: 0;
+  padding: 8px 4px;
+  overflow-y: auto;
+  font-size: 1rem;
+  line-height: 24px;
+}
+.app-tab .composer.is-start .attach,
+.app-tab .composer.is-start .send {
+  order: 0;
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  justify-content: center;
+  box-shadow: none;
+}
+.app-tab .composer.is-start .attach {
+  order: -1;
+}
+.app-tab .composer.is-start .send {
+  order: 1;
+}
+.app-tab .composer.is-start .send:disabled {
+  border: 0;
+  background: color-mix(in srgb, var(--btn-to) 35%, transparent);
+}
+.app-tab .composer.is-start .attach {
+  background: transparent;
+}
+/* Solid round send button with an up arrow, no sheen. */
+.app-tab .composer.is-start .send:not(:disabled),
+.app-tab .composer.is-start .send:hover:not(:disabled) {
+  background: var(--btn-to);
+  color: #fff;
+}
+.app-tab .composer.is-start .send:not(:disabled)::after {
+  display: none;
+}
+.app-tab .composer.is-start .send svg {
+  width: 20px;
+  height: 20px;
+}
+.app-tab .composer.is-start .attach span,
+.app-tab .composer.is-start .send span {
+  display: none;
+}
+
+/* Plain rows under the box: icon and title only. */
+.app-tab .chat--start .quick-lines {
+  max-width: 712px;
+  margin: 0 auto;
+  padding: 0 8px;
+  gap: 0;
+}
+.app-tab .chat--start .quick-line {
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.app-tab .chat--start .quick-line-icon {
+  background: transparent;
+  color: var(--ink-2);
+}
+.app-tab .chat--start .quick-line:hover .quick-line-icon,
+.app-tab .chat--start .quick-line:focus-visible .quick-line-icon {
+  background: transparent;
+  color: var(--tint);
+}
+.app-tab .chat--start .quick-line-title {
+  font-weight: 400;
+}
+.app-tab .chat--start .quick-line-text,
+.app-tab .chat--start .quick-line-arrow {
+  display: none;
+}

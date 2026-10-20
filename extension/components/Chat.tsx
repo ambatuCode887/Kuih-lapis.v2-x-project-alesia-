@@ -43,6 +43,7 @@ import "./polish.css";
 import "./friendly.css";
 import "./visuals.css";
 import "./web-look.css";
+import "./tab.css";
 
 export interface Message {
   id: string;
@@ -128,6 +129,53 @@ function extractSource(prompt: string): string | undefined {
   return link?.[1]?.trim();
 }
 
+const GENERIC_GREETINGS = [
+  "Got something suspicious?",
+  "What are we checking today?",
+  "Something look off?",
+  "Not sure about a message? Ask me.",
+];
+
+const TIME_GREETINGS: Record<string, string[]> = {
+  night: [
+    "Burning the midnight oil?",
+    "Night owl, huh? Let's check it.",
+    "Still up? Let's make sure it's safe.",
+    "Late-night suspicious message?",
+  ],
+  morning: [
+    "Good morning. What needs checking?",
+    "Morning! Got something to check?",
+  ],
+  afternoon: [
+    "Good afternoon. What's on your mind?",
+    "Afternoon! Anything look suspicious?",
+  ],
+  evening: [
+    "Good evening. What are we checking?",
+    "Evening! Got something to check?",
+  ],
+};
+
+/** A greeting that depends on the hour (night owl at 0-4), mixed with a few generic ones. */
+function pickGreeting(): string {
+  const hour = new Date().getHours();
+  const part =
+    hour < 5
+      ? "night"
+      : hour < 12
+        ? "morning"
+        : hour < 17
+          ? "afternoon"
+          : "evening";
+  // Night greetings are never diluted, so the night-owl line always fits the hour.
+  const pool =
+    part === "night"
+      ? TIME_GREETINGS.night!
+      : [...TIME_GREETINGS[part]!, ...GENERIC_GREETINGS];
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
 interface ChatProps {
   /** Side panel: compact, with an Expand button. Tab: wide, with a history rail. */
   layout?: "panel" | "tab";
@@ -137,11 +185,14 @@ interface ChatProps {
 
 export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [greeting, setGreeting] = useState(pickGreeting);
   const [input, setInput] = useState("");
   // The history sidebar can be minimised to a thin strip. The choice is remembered.
   const [railMin, setRailMin] = useState(() => {
     try {
-      const saved = localStorage.getItem(layout === "panel" ? "rail-minimised-panel" : "rail-minimised");
+      const saved = localStorage.getItem(
+        layout === "panel" ? "rail-minimised-panel" : "rail-minimised",
+      );
       if (saved === null) return layout === "panel";
       return saved === "1";
     } catch {
@@ -152,7 +203,10 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     setRailMin((current) => {
       const next = !current;
       try {
-        localStorage.setItem(layout === "panel" ? "rail-minimised-panel" : "rail-minimised", next ? "1" : "0");
+        localStorage.setItem(
+          layout === "panel" ? "rail-minimised-panel" : "rail-minimised",
+          next ? "1" : "0",
+        );
       } catch {
         /* remembering the choice is optional */
       }
@@ -416,6 +470,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     setFocusId(null);
     setInput("");
     setAttachments([]);
+    setGreeting(pickGreeting());
     // Forget the backend session: the next prompt opens a brand-new one with no memory
     // of the earlier conversation.
     void resetSession();
@@ -449,7 +504,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     if (!id) return;
     const name = renameDraft.trim().slice(0, 80);
     setMessages((current) =>
-      current.map((message) => (message.id === id ? { ...message, title: name || undefined } : message)),
+      current.map((message) =>
+        message.id === id ? { ...message, title: name || undefined } : message,
+      ),
     );
     setRenamingId(null);
   }
@@ -475,14 +532,18 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       else browser.storage.local.remove(VIEW_AFTER_KEY);
     }
     if (focusId && removed.has(focusId)) setFocusId(null);
-    setMessages((current) => current.filter((message) => !removed.has(message.id)));
+    setMessages((current) =>
+      current.filter((message) => !removed.has(message.id)),
+    );
     setConfirmDeleteId(null);
   }
 
   function openPastCheck(id: string) {
     const onScreen = visible.some((message) => message.id === id);
     if (onScreen && !focusId) {
-      document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: "smooth" });
+      document
+        .getElementById(`msg-${id}`)
+        ?.scrollIntoView({ behavior: "smooth" });
     } else {
       setFocusId(id);
     }
@@ -534,7 +595,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const history = messages.flatMap((message, index) => {
     if (message.role !== "user") return [];
     const reply = messages[index + 1];
-    const assessment = reply?.role === "assistant" ? reply.assessment : undefined;
+    const assessment =
+      reply?.role === "assistant" ? reply.assessment : undefined;
     const typed = message.text.trim();
     const title =
       (typed && extractSource(typed)) ||
@@ -561,7 +623,10 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       </div>
       <DownloadWarning />
       {(layout === "tab" || layout === "panel") && (
-        <aside className={`rail${railMin ? " rail--min" : ""}`} aria-label="Recent checks">
+        <aside
+          className={`rail${railMin ? " rail--min" : ""}`}
+          aria-label="Recent checks"
+        >
           <div className="rail-head">
             <div className="brand">
               <Mark />
@@ -573,119 +638,167 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
               onClick={toggleRail}
               aria-expanded={!railMin}
               aria-controls="rail-body"
-              aria-label={railMin ? "Show recent checks" : "Minimise recent checks"}
+              aria-label={
+                railMin ? "Show recent checks" : "Minimise recent checks"
+              }
               title={railMin ? "Show recent checks" : "Minimise"}
             >
-              <ChevronsLeftIcon width={20} height={20} className="rail-chevron" />
+              <ChevronsLeftIcon
+                width={20}
+                height={20}
+                className="rail-chevron"
+              />
             </button>
           </div>
-          <button type="button" className="rail-new" onClick={newCheck} aria-label="New check" title="New check">
-            <PlusIcon width={16} height={16} /> <span className="rail-new-text">New check</span>
+          <button
+            type="button"
+            className="rail-new"
+            onClick={newCheck}
+            aria-label="New check"
+            title="New check"
+          >
+            <PlusIcon width={16} height={16} />{" "}
+            <span className="rail-new-text">New check</span>
           </button>
           <div id="rail-body" className="rail-body" inert={railMin}>
-          <div className="rail-body-inner">
-          <h2 className="rail-title">Recent checks</h2>
-          {history.length === 0 ? (
-            <p className="rail-empty">Checks you run appear here.</p>
-          ) : (
-            <ul className="rail-list">
-              {[...history].reverse().map((item) => (
-                <li key={item.id} className="rail-row">
-                  {renamingId === item.id ? (
-                    <input
-                      className="rail-rename"
-                      value={renameDraft}
-                      maxLength={80}
-                      autoFocus
-                      aria-label="Rename this check"
-                      onChange={(event) => setRenameDraft(event.target.value)}
-                      onFocus={(event) => event.target.select()}
-                      onBlur={commitRename}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          commitRename();
-                        } else if (event.key === "Escape") {
-                          renameSkip.current = true;
-                          setRenamingId(null);
-                        }
-                      }}
-                    />
-                  ) : confirmDeleteId === item.id ? (
-                    <div className="rail-confirm-row" role="group" aria-label="Confirm delete">
-                      <span>Delete this check?</span>
-                      <button type="button" className="rail-danger" onClick={() => deleteCheck(item.id)}>
-                        Delete
-                      </button>
-                      <button type="button" className="ghost" onClick={() => setConfirmDeleteId(null)}>
-                        Keep
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="rail-item"
-                        aria-current={focusId === item.id ? "true" : undefined}
-                        onClick={() => openPastCheck(item.id)}
-                      >
-                        {item.band ? (
-                          <span className={`chip chip-${item.band.key}`}>
-                            {item.score ?? "–"}
-                          </span>
-                        ) : (
-                          <span className="chip chip-question" title="Question">
-                            Q
-                          </span>
-                        )}
-                        <span className="rail-item-text">{item.title}</span>
-                      </button>
-                      <div className="rail-actions">
-                        <button
-                          type="button"
-                          className="rail-act"
-                          aria-label={`Rename ${item.title}`}
-                          title="Rename"
-                          onClick={() => startRename(item.id, item.title)}
-                        >
-                          <PencilIcon width={16} height={16} />
-                        </button>
-                        <button
-                          type="button"
-                          className="rail-act"
-                          aria-label={`Delete ${item.title}`}
-                          title="Delete"
-                          onClick={() => {
-                            setRenamingId(null);
-                            setConfirmDeleteId(item.id);
+            <div className="rail-body-inner">
+              <h2 className="rail-title">Recent checks</h2>
+              {history.length === 0 ? (
+                <p className="rail-empty">Checks you run appear here.</p>
+              ) : (
+                <ul className="rail-list">
+                  {[...history].reverse().map((item) => (
+                    <li key={item.id} className="rail-row">
+                      {renamingId === item.id ? (
+                        <input
+                          className="rail-rename"
+                          value={renameDraft}
+                          maxLength={80}
+                          autoFocus
+                          aria-label="Rename this check"
+                          onChange={(event) =>
+                            setRenameDraft(event.target.value)
+                          }
+                          onFocus={(event) => event.target.select()}
+                          onBlur={commitRename}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              commitRename();
+                            } else if (event.key === "Escape") {
+                              renameSkip.current = true;
+                              setRenamingId(null);
+                            }
                           }}
+                        />
+                      ) : confirmDeleteId === item.id ? (
+                        <div
+                          className="rail-confirm-row"
+                          role="group"
+                          aria-label="Confirm delete"
                         >
-                          <TrashIcon width={16} height={16} />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {history.length > 0 &&
-            (confirmClear ? (
-              <div className="rail-confirm" role="group" aria-label="Confirm clearing history">
-                <p>Delete all recent checks?</p>
-                <button type="button" className="rail-danger" onClick={clearHistory}>
-                  Yes, delete
-                </button>
-                <button type="button" className="ghost" onClick={() => setConfirmClear(false)}>
-                  Keep them
-                </button>
-              </div>
-            ) : (
-              <button type="button" className="rail-clear" onClick={() => setConfirmClear(true)}>
-                Clear history
-              </button>
-            ))}
-          </div>
+                          <span>Delete this check?</span>
+                          <button
+                            type="button"
+                            className="rail-danger"
+                            onClick={() => deleteCheck(item.id)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost"
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Keep
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="rail-item"
+                            aria-current={
+                              focusId === item.id ? "true" : undefined
+                            }
+                            onClick={() => openPastCheck(item.id)}
+                          >
+                            {item.band ? (
+                              <span className={`chip chip-${item.band.key}`}>
+                                {item.score ?? "–"}
+                              </span>
+                            ) : (
+                              <span
+                                className="chip chip-question"
+                                title="Question"
+                              >
+                                Q
+                              </span>
+                            )}
+                            <span className="rail-item-text">{item.title}</span>
+                          </button>
+                          <div className="rail-actions">
+                            <button
+                              type="button"
+                              className="rail-act"
+                              aria-label={`Rename ${item.title}`}
+                              title="Rename"
+                              onClick={() => startRename(item.id, item.title)}
+                            >
+                              <PencilIcon width={16} height={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="rail-act"
+                              aria-label={`Delete ${item.title}`}
+                              title="Delete"
+                              onClick={() => {
+                                setRenamingId(null);
+                                setConfirmDeleteId(item.id);
+                              }}
+                            >
+                              <TrashIcon width={16} height={16} />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {history.length > 0 &&
+                (confirmClear ? (
+                  <div
+                    className="rail-confirm"
+                    role="group"
+                    aria-label="Confirm clearing history"
+                  >
+                    <p>Delete all recent checks?</p>
+                    <button
+                      type="button"
+                      className="rail-danger"
+                      onClick={clearHistory}
+                    >
+                      Yes, delete
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => setConfirmClear(false)}
+                    >
+                      Keep them
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="rail-clear"
+                    onClick={() => setConfirmClear(true)}
+                  >
+                    Clear history
+                  </button>
+                ))}
+            </div>
           </div>
           <div className="appearance-dock">
             <AppearanceMenu theme={theme} onChange={chooseTheme} />
@@ -693,7 +806,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
         </aside>
       )}
 
-      <div className="chat">
+      <div className={`chat${isEmpty && !loading ? " chat--start" : ""}`}>
         {layout === "panel" && (
           <header className="bar">
             <div className="brand">
@@ -721,11 +834,10 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
             {isEmpty && !loading && (
               <section className="welcome">
                 <div className="welcome-hero">
-                  <h1 className="welcome-title">
-                    Got something suspicious?
-                  </h1>
+                  <h1 className="welcome-title">{greeting}</h1>
                   <p className="welcome-lead">
-                    Paste a message, link or screenshot. I&apos;ll tell you if it looks like a scam.
+                    Paste a message, link or screenshot. I&apos;ll tell you if
+                    it looks like a scam.
                   </p>
                 </div>
               </section>
@@ -734,7 +846,11 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
             {focusId && (
               <div className="viewing" role="status">
                 <span>You are looking at an earlier check.</span>
-                <button type="button" className="ghost" onClick={() => setFocusId(null)}>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setFocusId(null)}
+                >
                   Back to current chat
                 </button>
               </div>
@@ -848,30 +964,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           </p>
         )}
 
-        {isEmpty && !loading && (
-          <ul className="quick-lines" aria-label="Start a check">
-            {QUICK_ACTIONS.map((action) => (
-              <li key={action.title}>
-                <button
-                  type="button"
-                  className="quick-line hover-tint"
-                  style={{ ["--tint" as string]: action.tint }}
-                  onClick={() => applyQuickAction(action)}
-                >
-                  <span className="quick-line-icon">
-                    <action.icon width={20} height={20} />
-                  </span>
-                  <span className="quick-line-title">{action.title}</span>
-                  <span className="quick-line-text">{action.description}</span>
-                  <ArrowIcon width={16} height={16} className="quick-line-arrow" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
         <form
-          className={`composer${dragging ? " is-dragging" : ""}`}
+          className={`composer is-start${dragging ? " is-dragging" : ""}`}
           onSubmit={(event) => {
             event.preventDefault();
             send();
@@ -940,7 +1034,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
             <textarea
               ref={inputRef}
               value={input}
-              placeholder="Paste a message, link or screenshot…"
+              placeholder="Ask Alesia…"
               rows={1}
               aria-label="Message"
               onChange={(event) => setInput(event.target.value)}
@@ -976,6 +1070,31 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
             )}
           </div>
         </form>
+        {isEmpty && !loading && (
+          <ul className="quick-lines" aria-label="Start a check">
+            {QUICK_ACTIONS.map((action) => (
+              <li key={action.title}>
+                <button
+                  type="button"
+                  className="quick-line hover-tint"
+                  style={{ ["--tint" as string]: action.tint }}
+                  onClick={() => applyQuickAction(action)}
+                >
+                  <span className="quick-line-icon">
+                    <action.icon width={20} height={20} />
+                  </span>
+                  <span className="quick-line-title">{action.title}</span>
+                  <span className="quick-line-text">{action.description}</span>
+                  <ArrowIcon
+                    width={16}
+                    height={16}
+                    className="quick-line-arrow"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {(!isEmpty || loading) && (
           <p className="ai-note" role="note">
             Project Alesia can make mistakes. Check important info.
