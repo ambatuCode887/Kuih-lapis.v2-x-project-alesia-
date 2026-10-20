@@ -101,3 +101,23 @@
   --focus: #8ab4ff;
   color-scheme: dark;
 }
+
+:root[data-theme='white'] {
+  /* "Light": pure white, black text, neutral grey accents (the opposite of "Dark"). */
+  --paper: #ffffff;
+  --card: #f5f5f5;
+  --ink: #0a0a0a;
+  --ink-2: #525252;
+  --line: #e5e5e5;
+  --line-strong: #737373;
+  --pine: #404040;
+  --pine-ink: #ffffff;
+  --pine-text: #262626;
+  --teal: #525252;
+  --risk-low: #0d7c55;
+  --risk-moderate: #8a5600;
+  --risk-high: #b04400;
+  --risk-critical: #b42318;
+  --focus: #0b57d0;
+  color-scheme: light;
+}

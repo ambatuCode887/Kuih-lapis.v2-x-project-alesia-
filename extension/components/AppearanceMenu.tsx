@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Theme } from '@/lib/theme';
 
-// "light" is the Rosy theme, "dark" is Crimson and "lilac" is Lilac and "black" is Dark (true black). The stored names stay the same,
+// "light" is the Rosy theme, "dark" is Crimson and "lilac" is Lilac and "black" is Dark (true black) and "white" is Light (pure white). The stored names stay the same,
 // so people who already chose a theme keep it.
 const OPTIONS: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Rosy' },
   { value: 'dark', label: 'Crimson' },
   { value: 'lilac', label: 'Lilac' },
   { value: 'black', label: 'Dark' },
+  { value: 'white', label: 'Light' },
 ];
 
-/** A word button, "Appearance", that opens a small menu to pick Rosy, Crimson, Lilac or Dark. */
+/** A word button, "Appearance", that opens a small menu to pick Rosy, Crimson, Lilac, Dark or Light. */
 export default function AppearanceMenu({
   theme,
   onChange,

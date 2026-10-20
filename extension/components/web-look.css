@@ -1474,3 +1474,148 @@ body {
 :root[data-theme='black'] .composer::before {
   background: conic-gradient(from var(--beam), #ffffff, #a3a3a3, #ffffff, #a3a3a3, #ffffff);
 }
+
+/* ───────── Message box: a little shorter ───────── */
+.composer {
+  padding: 6px 8px 8px 12px;
+  gap: 4px;
+}
+.composer-row {
+  gap: 8px;
+}
+.composer textarea {
+  min-height: 1.4em;
+  padding: 6px 6px 4px;
+}
+.attach,
+.send {
+  height: 44px;
+  padding: 0 16px;
+  font-size: 1rem;
+}
+.send {
+  min-width: 120px;
+}
+
+
+/* ───────── "Light" theme: pure white with grey accents ───────── */
+:root[data-theme='white'] {
+  --chrome-bg: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(243 243 243 / 0.86));
+  --chrome-edge: rgb(0 0 0 / 0.12);
+  --chrome-shine: rgb(255 255 255 / 0.9);
+  --chrome-ink: #0a0a0a;
+  --chrome-ink-2: #525252;
+  --chrome-hover: rgb(0 0 0 / 0.07);
+  --chrome-accent: #262626;
+  --chrome-solid: #ffffff;
+  --btn-hover: #404040;
+}
+:root[data-theme='white'] .drop-zone {
+  border-color: #262626;
+  background: color-mix(in srgb, #ffffff 88%, transparent);
+  color: #262626;
+}
+:root[data-theme='white'] .glass-bg span {
+  border-color: rgb(0 0 0 / 0.12);
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.12));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 30px 80px rgb(0 0 0 / 0.1);
+}
+:root[data-theme='white'] .app::before {
+  background: rgb(0 0 0 / 0.04);
+}
+:root[data-theme='white'] .app::after {
+  background: rgb(0 0 0 / 0.03);
+}
+:root[data-theme='white'] .chat::before {
+  background: rgb(0 0 0 / 0.03);
+}
+:root[data-theme='white'] .rail-new,
+:root[data-theme='white'] .send:not(:disabled) {
+  color: #ffffff;
+}
+:root[data-theme='white'] .send:hover:not(:disabled),
+:root[data-theme='white'] .rail-new:hover {
+  background: #000000;
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 0.3);
+}
+:root[data-theme='white'] .composer::before {
+  background: conic-gradient(from var(--beam), #262626, #737373, #262626, #737373, #262626);
+}
+.appearance-dot.dot-white {
+  background: linear-gradient(135deg, #ffffff 50%, #262626 50%);
+}
+
+/* ───────── Message box: lower still ───────── */
+.composer {
+  padding: 4px 8px 6px 12px;
+  gap: 2px;
+}
+.composer-row {
+  gap: 6px;
+}
+.composer textarea {
+  min-height: 1.3em;
+  padding: 4px 6px 2px;
+}
+.attach,
+.send {
+  height: 40px;
+  padding: 0 14px;
+}
+.send {
+  min-width: 112px;
+}
+
+/* ───────── Message box: one slim line ─────────
+   Photo, the text field and Check now share a single row, instead of the buttons sitting
+   under the text. The box is about half as tall as before and still grows as you type. */
+.composer {
+  padding: 5px 6px 5px 8px;
+  gap: 4px;
+}
+.composer-row {
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 6px;
+}
+.attach {
+  order: 1;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+}
+/* The word "Photo" is not drawn; the button still has its accessible name. */
+.attach span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.composer textarea {
+  order: 2;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 1.4em;
+  padding: 9px 4px 8px;
+}
+.send {
+  order: 3;
+  flex-shrink: 0;
+  height: 40px;
+  min-width: 0;
+  margin-left: 0;
+  padding: 0 14px;
+}
+
+/* ───────── Verdict card (where Read aloud sits): no multicolour gradient border ─────────
+   A plain solid border in the verdict's own colour, with no moving light. */
+.slip {
+  border: 2px solid color-mix(in srgb, var(--band, var(--pine)) 60%, var(--line-strong));
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  animation: none;
+}
