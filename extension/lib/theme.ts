@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
-export type Theme = 'light' | 'dark' | 'lilac' | 'black';
+export type Theme = 'light' | 'dark' | 'lilac' | 'black' | 'white';
 
 const THEME_KEY = 'theme';
 
 function isTheme(value: unknown): value is Theme {
-  return value === 'light' || value === 'dark' || value === 'lilac' || value === 'black';
+  return value === 'light' || value === 'dark' || value === 'lilac' || value === 'black' || value === 'white';
 }
 
 /**

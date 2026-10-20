@@ -217,3 +217,8 @@ section[id] { scroll-margin-top: 96px; }
     to { opacity: 1; transform: none; }
   }
 }
+
+/* "Light" (pure white): the navigation glass is neutral dark grey. */
+:root[data-theme='white'] .dark-glass {
+  background: linear-gradient(180deg, rgb(38 38 38 / 0.88), rgb(10 10 10 / 0.82));
+}

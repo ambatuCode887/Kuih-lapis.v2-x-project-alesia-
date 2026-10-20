@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Theme = "light" | "dark" | "lilac" | "black";
+type Theme = "light" | "dark" | "lilac" | "black" | "white";
 const KEY = "cyber-assistant-theme";
 
 // "light" is Rosy, "dark" is Crimson and "lilac" is Lilac. The stored names stay the same.
@@ -11,10 +11,11 @@ const OPTIONS: { value: Theme; label: string }[] = [
   { value: "dark", label: "Crimson" },
   { value: "lilac", label: "Lilac" },
   { value: "black", label: "Dark" },
+  { value: "white", label: "Light" },
 ];
 
 /**
- * A word button, "Appearance", that opens a small menu to pick Rosy, Crimson, Lilac or Dark.
+ * A word button, "Appearance", that opens a small menu to pick Rosy, Crimson, Lilac, Dark or Light.
  * The choice is remembered, and the landing page is put back to Rosy when you leave.
  */
 export function ThemeToggle() {
@@ -26,7 +27,7 @@ export function ThemeToggle() {
     try {
       const saved = window.localStorage.getItem(KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (saved === "light" || saved === "dark" || saved === "lilac" || saved === "black") setTheme(saved);
+      if (saved === "light" || saved === "dark" || saved === "lilac" || saved === "black" || saved === "white") setTheme(saved);
     } catch {
       // storage unavailable: stay on Rosy
     }
@@ -103,7 +104,9 @@ export function ThemeToggle() {
                         ? "linear-gradient(135deg, #150b0f 50%, #e5566d 50%)"
                         : option.value === "lilac"
                           ? "linear-gradient(135deg, #eff1f5 50%, #8839ef 50%)"
-                          : "linear-gradient(135deg, #000 50%, #d4d4d4 50%)",
+                          : option.value === "black"
+                            ? "linear-gradient(135deg, #000 50%, #d4d4d4 50%)"
+                            : "linear-gradient(135deg, #fff 50%, #262626 50%)",
                 }}
               />
               {option.label}
