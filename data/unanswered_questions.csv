@@ -1,0 +1,39 @@
+﻿timestamp_utc,question,model_answer,status
+2026-10-20T13:04:52+00:00,what is prompt injection?,"Prompt injection is a type of attack where an adversary manipulates the input to a system's query or instruction, often aimed at generating unintended or harmful responses from language models or other AI systems. Essentially, the attacker tricks the system into executing a desired prompt or question that could lead to unwanted actions or disclosures.",approved_review
+2026-10-20T16:17:33+00:00,How do I secure a Kubernetes cluster against privileged pods?,"To secure a Kubernetes cluster against privileged pods, follow these steps:
+
+1. **Limit Pod Privileges**: By default, pods run with the privileges of the host. Restrict this by setting the `securityContext.runAsUser` and `securityContext.runAsGroup` to non-root values, and use `fsGroup` to change the file permissions on the host.
+
+2. **Use Network Policies**: Implement network policies to control the communication between pods. This can prevent unauthorized access to sensitive data or services.
+
+3. **Restrict Capabilities**: Use `securityContext.capabilities.drop` to remove unnecessary Linux capabilities from containers, reducing the potential damage if a container is compromised.
+
+4. **Apply RBAC**: Implement Role-Based Access Control (RBAC) to ensure that only authorized users and services can modify or access resources in the cluster.
+
+5. **Limit API Access**: Restrict access to the Kubernetes API server by using network policies and authentication mechanisms like OAuth2.
+
+6. **Use Pod Security Policies (PSP)**: Enable Pod Security Policies to enforce security standards for pods. PSP can restrict things like privileged containers, volume usage, and other security settings.
+
+7. **Monitor and Audit**: Regularly monitor the cluster for unusual activity and audit logs to detect and respond to security incidents.
+
+By implementing these measures, you can significantly enhance the security of your Kubernetes cluster against privileged pods.",approved_review
+2026-10-20T16:20:37+00:00,I'm currently exploring Splunk how do i ensure my splunk doesn't get hijacked by a attacker?,"To ensure your Splunk instance is secure and not hijacked by an attacker, follow these steps:
+
+1. **Use Strong Authentication:** Implement strong, unique passwords and consider using multi-factor authentication (MFA) for added security.
+
+2. **Secure Your Network:** Ensure your Splunk instance is properly isolated and secured within your network. Use firewalls and other security measures to limit access to only necessary hosts and ports.
+
+3. **Update Regularly:** Keep Splunk, its add-ons, and all related software up-to-date to protect against known vulnerabilities.
+
+4. **Enable Audit Logging:** Enable auditing and logging in Splunk to monitor access and activities. This can help detect and respond to suspicious activities.
+
+5. **Restrict Access:** Limit access to Splunk to only those who need it. Use role-based access control (RBAC) to manage user permissions.
+
+6. **Secure Data:** Ensure sensitive data is properly encrypted both in transit and at rest. Use secure methods for storing and transmitting data.
+
+7. **Monitor for Anomalies:** Use Splunk itself to monitor for unusual activity, potential security breaches, and unauthorized access attempts.
+
+8. **Regularly Test Security:** Perform regular security assessments and penetration testing to identify and remediate vulnerabilities.
+
+By following these steps, you can significantly enhance the security of your Splunk instance and reduce the risk of it being hijacked.",approved_review
+2026-10-20T16:22:12+00:00,How about Jira?,"Jira is a project management and issue tracking tool widely used in software development and IT services. It is generally considered secure, but like any software, it can have vulnerabilities. It's important to keep it updated and follow best security practices, such as using strong passwords and enabling two-factor authentication.",approved_review
