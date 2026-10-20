@@ -753,6 +753,57 @@ def test_attachment_prompt_injection_is_preserved_as_untrusted_pdf_evidence(monk
     ).read_text(encoding="utf-8")
 
 
+def test_multiple_image_attachments_each_keep_their_own_evidence(monkeypatch) -> None:
+    from PIL import Image
+
+    from agents.tools.agents.message_agents.attachments import preprocess_message_content
+
+    long_text = "Routine delivery notice. " * 1500
+    second_text = "Second screenshot asks you to transfer money urgently."
+    extracted = iter([long_text, second_text])
+    monkeypatch.setattr(
+        "agents.tools.agents.message_agents.attachments._ocr_image",
+        lambda image: next(extracted),
+    )
+
+    def png_part(name: str) -> types.Part:
+        buffer = io.BytesIO()
+        Image.new("RGB", (10, 10), "white").save(buffer, format="PNG")
+        return types.Part(
+            inline_data=types.Blob(
+                mime_type="image/png",
+                display_name=name,
+                data=buffer.getvalue(),
+            )
+        )
+
+    content = types.Content(
+        role="user",
+        parts=[
+            types.Part(text="Are these screenshots scams?"),
+            png_part("screenshot-1.jpg"),
+            png_part("screenshot-2.jpg"),
+        ],
+    )
+    context = SimpleNamespace(
+        invocation_id="multi-image-test",
+        session=SimpleNamespace(events=[]),
+        user_content=content,
+    )
+
+    prepared = asyncio.run(preprocess_message_content(content, context))
+    prepared_text = "\n".join(part.text for part in prepared.parts)
+    evidence_json = prepared_text.split(
+        "[BEGIN UNTRUSTED ATTACHMENT DATA (JSON)]\n", 1
+    )[1].split("\n[END UNTRUSTED ATTACHMENT DATA]", 1)[0]
+    evidence = json.loads(evidence_json)["attachment_evidence"]
+
+    assert "Attachment 1:" in evidence
+    assert "Attachment 2:" in evidence
+    assert "transfer money urgently" in evidence
+    assert len(evidence) <= 30_000
+
+
 def test_router_streams_prompt_injection_warning_for_attachment(monkeypatch) -> None:
     async def fake_preprocess(user_content, invocation_context):
         return types.Content(
