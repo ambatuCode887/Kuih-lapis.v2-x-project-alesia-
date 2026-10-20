@@ -12,10 +12,16 @@ from agents.tools.functions.retrieve.credential_stuffing import format_passage, 
 
 logger = logging.getLogger(__name__)
 
+_MEMORY_TURNS = 3
 _QA_RECORD = re.compile(
     r"\s*Question:\s*(?P<question>.*?)\s*\nAnswer:\s*(?P<answer>.*?)\s*\Z",
     re.IGNORECASE | re.DOTALL,
 )
+
+
+def _session_state(ctx: InvocationContext) -> dict:
+    state = getattr(getattr(ctx, "session", None), "state", None)
+    return state if state is not None else {}
 
 
 def _cached_followups(results: list[dict], query: str) -> list[dict[str, str]]:
@@ -55,13 +61,18 @@ class RetrievalAgent(BaseAgent):
             and "[BEGIN UNTRUSTED ATTACHMENT DATA" not in part.text
             and "[Extracted attachment text;" not in part.text
         ).strip()
+        state = _session_state(ctx)
+        memory = list(state.get("knowledge_memory") or [])
+        previous_question = memory[-1] if memory else ""
+        search_query = f"{previous_question}\n{query}" if previous_question and query else query
+        knowledge_memory = [*memory, query][-_MEMORY_TURNS:] if query else memory
 
         followups = []
         if not query:
             report = "No query text was provided, so no knowledge search was run."
         else:
             try:
-                retrieval = await asyncio.to_thread(retrieve_knowledge, query)
+                retrieval = await asyncio.to_thread(retrieve_knowledge, search_query)
             except RuntimeError as error:
                 logger.warning("Knowledge retrieval unavailable: %s", error)
                 report = "The knowledge base is unavailable right now. Please try again in a moment."
@@ -81,7 +92,9 @@ class RetrievalAgent(BaseAgent):
                 role="model",
                 parts=[types.Part(text=report)],
             ),
-            actions=EventActions(state_delta={"cached_followups": followups}),
+            actions=EventActions(
+                state_delta={"cached_followups": followups, "knowledge_memory": knowledge_memory}
+            ),
             turn_complete=True,
         )
 
