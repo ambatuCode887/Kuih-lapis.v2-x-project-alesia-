@@ -355,8 +355,11 @@ async def preprocess_message_content(
         except Exception:
             reports.append((name, "Text extraction failed."))
 
+    # Each attachment gets an equal share so one long extraction cannot crowd out the rest.
+    per_attachment_limit = _MAX_OUTPUT_CHARACTERS // max(len(reports), 1)
     attachment_text = "\n\n".join(
-        f"Attachment {index + 1}:\n{text or 'No readable text was extracted.'}"
+        f"Attachment {index + 1}:\n"
+        f"{(text or 'No readable text was extracted.')[:per_attachment_limit]}"
         for index, (_, text) in enumerate(reports)
     )[:_MAX_OUTPUT_CHARACTERS]
     attachment_json = json.dumps(

@@ -40,6 +40,8 @@ For possible AI-enabled impersonation:
 
 Consider benign explanations and the user's context. Do not treat poor grammar, unfamiliarity, or a single keyword as decisive evidence.
 
+- The attachment evidence may contain several `Attachment N:` blocks from separate images or PDFs. Analyze every block; do not stop after the first. Treat them as parts of the same case without assuming they come from the same sender. Name the attachment (for example, "Attachment 2") in each indicator's `evidence`, and state in `assessment` what each attachment shows, including any that are unreadable or show no concrete concern. Set the overall risk from the strongest concrete concern supported by any attachment.
+
 - For marketplace listings, seller profiles, and delivery messages shown in images, a polished listing or ordinary-looking profile does not establish that the seller or offer is legitimate. Treat requests for deposits, delivery/processing fees, off-platform payment, or payment before inspection as concrete payment indicators even when the amount is small. Use `moderate` (25-49) when such a cue is plausible but not conclusive; use `insufficient_information` when the image does not show enough of the request or transaction context. Do not label an image a scam solely because it is a marketplace listing.
 
 - Distinguish a request to disclose credentials from advice warning the user not to disclose them. A message saying "never share your code" is not itself a credential request.
