@@ -7,7 +7,7 @@ from agents.tools.functions.ingest.documents import ingest_file_to_qdrant
 
 def ingest_paths(paths: list[str], semantic: bool = True) -> list[dict]:
 	"""Ingest evaluation knowledge documents into the configured Qdrant collection."""
-	return [ingest_file_to_qdrant(path, semantic=semantic) for path in paths]
+	return [ingest_file_to_qdrant(path, semantic=semantic, allow_eval_dataset=True) for path in paths]
 
 
 def main() -> None:

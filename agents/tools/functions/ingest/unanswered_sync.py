@@ -103,24 +103,47 @@ def _point(row: ReviewRow, vector: list[float]) -> Any:
     )
 
 
+def stored_point_ids(qdrant: Any, collection: str) -> set[str]:
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+    flt = Filter(must=[FieldCondition(key="source", match=MatchValue(value=SOURCE))])
+    ids: set[str] = set()
+    offset = None
+    while True:
+        points, offset = qdrant.scroll(
+            collection_name=collection,
+            scroll_filter=flt,
+            limit=256,
+            offset=offset,
+            with_payload=False,
+            with_vectors=False,
+        )
+        ids.update(str(point.id) for point in points)
+        if offset is None:
+            return ids
+
+
 def sync_review_log(path: Path, *, dry_run: bool = False, prune: bool = False) -> dict[str, Any]:
-    """Upsert approved rows; pruning is opt-in and deletes only non-approved row IDs."""
+    """Upsert approved rows; pruning is opt-in and deletes non-approved and stale point IDs."""
     approved, not_approved = read_review_log(path)
+    cfg = settings()
+    qdrant = client()
+    current_ids = {row.point_id for row in approved + not_approved}
+    stale_ids = sorted(stored_point_ids(qdrant, cfg.collection) - current_ids)
     summary: dict[str, Any] = {
         "file": str(path),
         "approved": len(approved),
         "not_approved": len(not_approved),
+        "stale": len(stale_ids),
         "dry_run": dry_run,
         "upserted": 0,
         "pruned": 0,
     }
     if dry_run:
-        summary["would_prune"] = len(not_approved) if prune else 0
+        summary["would_prune"] = len(not_approved) + len(stale_ids) if prune else 0
         return summary
 
     ensure_collection()
-    cfg = settings()
-    qdrant = client()
     if approved:
         vectors = embed_texts([_text(row) for row in approved])
         points = [_point(row, vector) for row, vector in zip(approved, vectors, strict=True)]
@@ -132,15 +155,16 @@ def sync_review_log(path: Path, *, dry_run: bool = False, prune: bool = False) -
             )
         summary["upserted"] = len(points)
 
-    if prune and not_approved:
+    if prune and (not_approved or stale_ids):
         from qdrant_client.models import PointIdsList
 
+        delete_ids = [row.point_id for row in not_approved] + stale_ids
         qdrant.delete(
             collection_name=cfg.collection,
-            points_selector=PointIdsList(points=[row.point_id for row in not_approved]),
+            points_selector=PointIdsList(points=delete_ids),
             wait=True,
         )
-        summary["pruned"] = len(not_approved)
+        summary["pruned"] = len(delete_ids)
     return summary
 
 

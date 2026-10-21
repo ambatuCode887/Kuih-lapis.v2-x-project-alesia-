@@ -2,21 +2,21 @@
 2026-10-20T13:04:52+00:00,what is prompt injection?,"Prompt injection is a type of attack where an adversary manipulates the input to a system's query or instruction, often aimed at generating unintended or harmful responses from language models or other AI systems. Essentially, the attacker tricks the system into executing a desired prompt or question that could lead to unwanted actions or disclosures.",approved_review
 2026-10-20T16:17:33+00:00,How do I secure a Kubernetes cluster against privileged pods?,"To secure a Kubernetes cluster against privileged pods, follow these steps:
 
-1. **Limit Pod Privileges**: By default, pods run with the privileges of the host. Restrict this by setting the `securityContext.runAsUser` and `securityContext.runAsGroup` to non-root values, and use `fsGroup` to change the file permissions on the host.
+1. **Enforce Pod Security Admission (PSA)**: Label namespaces to apply the Pod Security Standards. Use the `restricted` level where possible, and `baseline` at minimum, which blocks privileged containers, host namespaces, and hostPath volumes. Example: `kubectl label namespace my-app pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/enforce-version=latest`. Use `audit` and `warn` modes first to see what would break. Note that Pod Security Policies (PSP) were deprecated in 1.21 and removed in 1.25, so PSA is the built-in replacement.
 
-2. **Use Network Policies**: Implement network policies to control the communication between pods. This can prevent unauthorized access to sensitive data or services.
+2. **Add Policy-as-Code for Custom Rules**: Use Kyverno, OPA Gatekeeper, or ValidatingAdmissionPolicy (CEL-based, GA in 1.30) to enforce requirements PSA can't express, such as approved image registries or required labels.
 
-3. **Restrict Capabilities**: Use `securityContext.capabilities.drop` to remove unnecessary Linux capabilities from containers, reducing the potential damage if a container is compromised.
+3. **Harden Each Pod's securityContext**: Set `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities.drop: ALL`, and `seccompProfile.type: RuntimeDefault`. Explicitly block `privileged: true`, `hostPath` volumes, and host namespaces (`hostPID`, `hostIPC`, `hostNetwork`).
 
-4. **Apply RBAC**: Implement Role-Based Access Control (RBAC) to ensure that only authorized users and services can modify or access resources in the cluster.
+4. **Apply Least-Privilege RBAC**: Restrict who can create or modify pods, deployments, and namespaces, and avoid broad cluster-admin grants. Anyone who can create pods in an unrestricted namespace can often escalate privileges.
 
-5. **Limit API Access**: Restrict access to the Kubernetes API server by using network policies and authentication mechanisms like OAuth2.
+5. **Protect the API Server**: Use OIDC for authentication, restrict network access to the control plane, and disable anonymous auth.
 
-6. **Use Pod Security Policies (PSP)**: Enable Pod Security Policies to enforce security standards for pods. PSP can restrict things like privileged containers, volume usage, and other security settings.
+6. **Use Network Policies**: Limit lateral movement between pods if one is compromised.
 
-7. **Monitor and Audit**: Regularly monitor the cluster for unusual activity and audit logs to detect and respond to security incidents.
+7. **Monitor and Audit**: Enable Kubernetes audit logging and use a runtime tool like Falco to detect suspicious behavior such as privileged container launches or unexpected host access.
 
-By implementing these measures, you can significantly enhance the security of your Kubernetes cluster against privileged pods.",approved_review
+By implementing these measures, you can significantly reduce the risk of privileged pods in your Kubernetes cluster. Check the docs for your Kubernetes version before relying on specifics: kubernetes.io/docs/concepts/security/pod-security-admission.",approved_review
 2026-10-20T16:20:37+00:00,I'm currently exploring Splunk how do i ensure my splunk doesn't get hijacked by a attacker?,"To ensure your Splunk instance is secure and not hijacked by an attacker, follow these steps:
 
 1. **Use Strong Authentication:** Implement strong, unique passwords and consider using multi-factor authentication (MFA) for added security.
