@@ -114,7 +114,10 @@ class RetrievalAgent(BaseAgent):
             report = "No query text was provided, so no knowledge search was run."
         else:
             try:
-                retrieval = await asyncio.to_thread(retrieve_knowledge, search_query)
+                retrieval = await asyncio.to_thread(retrieve_knowledge, query)
+                # Retry with the previous question only when the standalone query finds nothing.
+                if not retrieval.get("results") and search_query != query:
+                    retrieval = await asyncio.to_thread(retrieve_knowledge, search_query)
             except RuntimeError as error:
                 logger.warning("Knowledge retrieval unavailable: %s", error)
                 report = "The knowledge base is unavailable right now. Please try again in a moment."

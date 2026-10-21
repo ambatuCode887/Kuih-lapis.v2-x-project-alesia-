@@ -1030,7 +1030,8 @@ def test_retrieval_agent_uses_previous_knowledge_question_as_session_memory(monk
     events = asyncio.run(collect_events())
 
     assert captured_queries == [
-        "How do I protect myself from scammers?\nWhat if the scammers have my credentials?"
+        "What if the scammers have my credentials?",
+        "How do I protect myself from scammers?\nWhat if the scammers have my credentials?",
     ]
     assert events[0].actions.state_delta["knowledge_memory"] == [
         "How do I protect myself from scammers?",
