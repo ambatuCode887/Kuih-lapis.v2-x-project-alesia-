@@ -1619,3 +1619,94 @@ body {
   background: color-mix(in srgb, var(--card) 86%, transparent);
   animation: none;
 }
+
+/* ───────── Side panel: make everything fit a narrow width without crowding ───────── */
+/* The expand button sits at the right of the header, as in a normal toolbar. */
+.app-panel .bar {
+  justify-content: flex-end;
+}
+
+@media (max-width: 460px) {
+  /* Check becomes a round arrow button, so the text field gets the room. */
+  .app-panel .send {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .app-panel .send span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The quick actions show only their title; the short description had no room. */
+  .app-panel .quick-line-text {
+    display: none;
+  }
+  .app-panel .quick-line-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Very narrow panel (about 360px or less): a slimmer sidebar strip and a roomier verdict header. */
+@media (max-width: 360px) {
+  .app-panel {
+    padding-left: 56px;
+  }
+  .app-panel .rail.rail--min {
+    width: 56px;
+    padding: 14px 6px;
+  }
+  .app-panel .rail--min .rail-new,
+  .app-panel .rail--min .appearance-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .app-panel .quick-line-arrow {
+    display: none;
+  }
+  .app-panel .slip {
+    padding: 14px;
+  }
+  .app-panel .verdict {
+    gap: 12px;
+  }
+  .app-panel .verdict-icon {
+    width: 52px;
+    height: 52px;
+  }
+  .app-panel .verdict-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+  .app-panel .verdict-title {
+    font-size: 1.35rem;
+  }
+}
+
+/* Sidebar rows: the rename / delete buttons float over the end of the row, so the title
+   can use the whole width and is only covered while you hover or focus the row. */
+.rail-row {
+  position: relative;
+}
+.rail-actions {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  padding-left: 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 94%, transparent) 14px);
+}
+@media (hover: none) {
+  .rail-actions {
+    opacity: 0.85;
+  }
+}
