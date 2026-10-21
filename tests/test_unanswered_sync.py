@@ -17,10 +17,11 @@ class FakeQdrant:
     def __init__(self) -> None:
         self.upserts: list = []
         self.deletes: list[str] = []
-        self.stored: list[str] = []
+        self.stored: dict[str, str] = {}
 
     def scroll(self, *, collection_name, scroll_filter, limit, offset, with_payload, with_vectors):
-        return [SimpleNamespace(id=point_id) for point_id in self.stored], None
+        points = [SimpleNamespace(id=pid, payload={"text": text}) for pid, text in self.stored.items()]
+        return points, None
 
     def upsert(self, *, collection_name, points, wait):
         self.upserts.extend(points)
@@ -139,7 +140,7 @@ def test_duplicate_rows_abort_before_any_write(tmp_path, qdrant) -> None:
 def test_dry_run_reports_stale_points_without_deleting(tmp_path, qdrant) -> None:
     path = write_log(tmp_path, APPROVED_ROW)
     stale_id = sync.point_id_for("2026-10-19T08:00:00+00:00", "Old question?")
-    qdrant.stored = [stale_id]
+    qdrant.stored = {stale_id: "Question: Old question?\nAnswer: old"}
 
     summary = sync.sync_review_log(path, dry_run=True)
 
@@ -150,10 +151,27 @@ def test_dry_run_reports_stale_points_without_deleting(tmp_path, qdrant) -> None
 def test_prune_removes_stale_points(tmp_path, qdrant) -> None:
     path = write_log(tmp_path, APPROVED_ROW)
     stale_id = sync.point_id_for("2026-10-19T08:00:00+00:00", "Old question?")
-    qdrant.stored = [stale_id, sync.point_id_for("2026-10-20T13:04:52+00:00", "What is MFA?")]
+    qdrant.stored = {
+        stale_id: "Question: Old question?\nAnswer: old",
+        sync.point_id_for("2026-10-20T13:04:52+00:00", "What is MFA?"): "stale text",
+    }
 
     summary = sync.sync_review_log(path, prune=True)
 
     assert summary["stale"] == 1
     assert summary["pruned"] == 1
     assert qdrant.deletes == [stale_id]
+
+
+def test_unchanged_approved_row_is_not_upserted(tmp_path, qdrant) -> None:
+    path = write_log(tmp_path, APPROVED_ROW)
+    approved_id = sync.point_id_for("2026-10-20T13:04:52+00:00", "What is MFA?")
+    qdrant.stored = {approved_id: "Question: What is MFA?\nAnswer: A second verification factor."}
+
+    summary = sync.sync_review_log(path)
+
+    assert summary["approved"] == 0
+    assert summary["unchanged"] == 1
+    assert summary["upserted"] == 0
+    assert summary["status"] == "done_success"
+    assert qdrant.upserts == []

@@ -37,3 +37,18 @@ By implementing these measures, you can significantly reduce the risk of privile
 
 By following these steps, you can significantly enhance the security of your Splunk instance and reduce the risk of it being hijacked.",approved_review
 2026-10-20T16:22:12+00:00,How about Jira?,"Jira is a project management and issue tracking tool widely used in software development and IT services. It is generally considered secure, but like any software, it can have vulnerabilities. It's important to keep it updated and follow best security practices, such as using strong passwords and enabling two-factor authentication.",approved_review
+2026-10-21T07:11:56+00:00,how do the telecom company flagged some incoming call are scam and some are not scam,"Telecom companies flag incoming calls as likely scams by combining several signals, so the result differs from call to call.
+
+1. Caller authentication: In some countries, such as the US and Canada, carriers use STIR/SHAKEN. The originating carrier digitally signs the call with an attestation level (A, B or C) that shows how confident it is that the caller is entitled to use the displayed number. Calls with weak or missing attestation are more likely to be flagged. Other countries use different frameworks.
+
+2. Network behavior analysis: Carriers monitor patterns such as very high call volume from one number, many very short calls, a low answer rate, sequential or bulk dialing, and calls that arrive from abroad but display a local number (spoofing).
+
+3. Reputation scoring: Carriers often use analytics vendors or in-house systems that give each number a risk score based on blocklists, user complaint rates and calling patterns. When the score passes a threshold, the call is labeled as scam or spam risk, or is blocked.
+
+4. User reports and feedback: Complaints from subscribers, call-blocking apps and government or industry reporting channels feed into the scores, and numbers that receive many reports are flagged faster.
+
+5. Machine learning: Models trained on past scam traffic look for patterns that resemble known scam campaigns, including calling times, number ranges and call duration.
+
+Why some calls are flagged and others are not: Scammers often rotate or spoof numbers, so a new number may have no history and pass the filters. Legitimate high-volume callers, such as clinics, delivery services and survey companies, can be flagged by mistake because their behavior looks similar to scam campaigns. No system is perfect, so both false positives and missed scams occur.
+
+Advice for users: Treat unexpected calls asking for money, passwords, OTP codes or personal details with caution, even when no scam label appears. Hang up and call back using the official number of the organization. Report suspicious numbers to your carrier or national regulator.",approved_review

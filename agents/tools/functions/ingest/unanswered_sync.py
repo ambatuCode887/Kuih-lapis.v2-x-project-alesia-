@@ -103,11 +103,11 @@ def _point(row: ReviewRow, vector: list[float]) -> Any:
     )
 
 
-def stored_point_ids(qdrant: Any, collection: str) -> set[str]:
+def stored_texts(qdrant: Any, collection: str) -> dict[str, str]:
     from qdrant_client.models import FieldCondition, Filter, MatchValue
 
     flt = Filter(must=[FieldCondition(key="source", match=MatchValue(value=SOURCE))])
-    ids: set[str] = set()
+    stored: dict[str, str] = {}
     offset = None
     while True:
         points, offset = qdrant.scroll(
@@ -115,12 +115,13 @@ def stored_point_ids(qdrant: Any, collection: str) -> set[str]:
             scroll_filter=flt,
             limit=256,
             offset=offset,
-            with_payload=False,
+            with_payload=["text"],
             with_vectors=False,
         )
-        ids.update(str(point.id) for point in points)
+        for point in points:
+            stored[str(point.id)] = (point.payload or {}).get("text", "")
         if offset is None:
-            return ids
+            return stored
 
 
 def sync_review_log(path: Path, *, dry_run: bool = False, prune: bool = False) -> dict[str, Any]:
@@ -128,25 +129,29 @@ def sync_review_log(path: Path, *, dry_run: bool = False, prune: bool = False) -
     approved, not_approved = read_review_log(path)
     cfg = settings()
     qdrant = client()
+    stored = stored_texts(qdrant, cfg.collection)
     current_ids = {row.point_id for row in approved + not_approved}
-    stale_ids = sorted(stored_point_ids(qdrant, cfg.collection) - current_ids)
+    stale_ids = sorted(set(stored) - current_ids)
+    changed = [row for row in approved if stored.get(row.point_id) != _text(row)]
     summary: dict[str, Any] = {
         "file": str(path),
-        "approved": len(approved),
+        "approved": len(changed),
+        "unchanged": len(approved) - len(changed),
         "not_approved": len(not_approved),
         "stale": len(stale_ids),
         "dry_run": dry_run,
         "upserted": 0,
         "pruned": 0,
+        "status": "dry_run_success" if dry_run else "done_success",
     }
     if dry_run:
         summary["would_prune"] = len(not_approved) + len(stale_ids) if prune else 0
         return summary
 
     ensure_collection()
-    if approved:
-        vectors = embed_texts([_text(row) for row in approved])
-        points = [_point(row, vector) for row, vector in zip(approved, vectors, strict=True)]
+    if changed:
+        vectors = embed_texts([_text(row) for row in changed])
+        points = [_point(row, vector) for row, vector in zip(changed, vectors, strict=True)]
         for start in range(0, len(points), BATCH_SIZE):
             qdrant.upsert(
                 collection_name=cfg.collection,
