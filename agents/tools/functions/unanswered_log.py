@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from agents.config import PROJECT_ROOT, env
+from agents.tools.functions import review_sheet
 
 FIELDS = ["timestamp_utc", "question", "model_answer", "status"]
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
@@ -27,14 +28,18 @@ def _safe_cell(value: str) -> str:
 
 def append_unanswered(question: str, model_answer: str, status: str) -> None:
     """Append one row; existing rows are never rewritten or deleted."""
-    path = unanswered_log_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
     row = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "question": _safe_cell(question),
         "model_answer": _safe_cell(model_answer),
         "status": status,
     }
+    if review_sheet.is_configured():
+        review_sheet.append_row([row[field] for field in FIELDS])
+        return
+
+    path = unanswered_log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     with _LOCK:
         is_new = not path.exists() or path.stat().st_size == 0
         with path.open("a", newline="", encoding="utf-8-sig") as handle:

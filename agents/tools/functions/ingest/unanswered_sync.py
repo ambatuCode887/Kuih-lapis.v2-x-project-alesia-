@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from agents.tools.functions import review_sheet
 from agents.tools.functions.embeddings import embed_texts
 from agents.tools.functions.qdrant_store import client, ensure_collection, settings
 from agents.tools.functions.unanswered_log import unanswered_log_path
@@ -44,19 +45,31 @@ def _text(row: ReviewRow) -> str:
 
 
 def read_review_log(path: Path) -> tuple[list[ReviewRow], list[ReviewRow]]:
-    """Validate the whole log and return (approved rows, rows that are not approved)."""
+    """Validate the CSV review log and return (approved rows, rows that are not approved)."""
     if not path.exists():
         raise SyncError(f"review log not found: {path}")
     with path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
-        columns = set(reader.fieldnames or [])
-        missing = REQUIRED_COLUMNS - columns
-        if missing:
-            raise SyncError(f"missing columns: {sorted(missing)}")
-        answer_column = "answer" if "answer" in columns else "model_answer"
-        if answer_column not in columns:
-            raise SyncError("needs an 'answer' or 'model_answer' column")
-        records = list(reader)
+        return _validate(list(reader.fieldnames or []), list(reader))
+
+
+def read_review_sheet() -> tuple[list[ReviewRow], list[ReviewRow]]:
+    """Validate the shared review sheet with the same rules as the CSV log."""
+    try:
+        columns, records = review_sheet.read_rows()
+    except review_sheet.ReviewSheetError as error:
+        raise SyncError(f"could not read review sheet: {error}") from error
+    return _validate(columns, records)
+
+
+def _validate(columns: list[str], records: list[dict[str, str]]) -> tuple[list[ReviewRow], list[ReviewRow]]:
+    column_set = set(columns)
+    missing = REQUIRED_COLUMNS - column_set
+    if missing:
+        raise SyncError(f"missing columns: {sorted(missing)}")
+    answer_column = "answer" if "answer" in column_set else "model_answer"
+    if answer_column not in column_set:
+        raise SyncError("needs an 'answer' or 'model_answer' column")
 
     approved: list[ReviewRow] = []
     not_approved: list[ReviewRow] = []
@@ -124,9 +137,9 @@ def stored_texts(qdrant: Any, collection: str) -> dict[str, str]:
             return stored
 
 
-def sync_review_log(path: Path, *, dry_run: bool = False, prune: bool = False) -> dict[str, Any]:
-    """Upsert approved rows; pruning is opt-in and deletes non-approved and stale point IDs."""
-    approved, not_approved = read_review_log(path)
+def sync_review_log(path: Path | None, *, dry_run: bool = False, prune: bool = False) -> dict[str, Any]:
+    """Upsert approved rows from a CSV (or the review sheet when path is None); pruning is opt-in."""
+    approved, not_approved = read_review_sheet() if path is None else read_review_log(path)
     cfg = settings()
     qdrant = client()
     stored = stored_texts(qdrant, cfg.collection)
@@ -134,7 +147,7 @@ def sync_review_log(path: Path, *, dry_run: bool = False, prune: bool = False) -
     stale_ids = sorted(set(stored) - current_ids)
     changed = [row for row in approved if stored.get(row.point_id) != _text(row)]
     summary: dict[str, Any] = {
-        "file": str(path),
+        "file": str(path) if path is not None else "review_sheet",
         "approved": len(changed),
         "unchanged": len(approved) - len(changed),
         "not_approved": len(not_approved),
@@ -177,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Upsert approved_review rows from the unanswered log into Qdrant."
     )
-    parser.add_argument("--csv", type=Path, help="review log path (default: UNANSWERED_LOG_PATH)")
+    parser.add_argument("--csv", type=Path, help="read this CSV instead of the review sheet")
     parser.add_argument("--dry-run", action="store_true", help="validate and report without writing")
     parser.add_argument(
         "--prune",
@@ -185,9 +198,10 @@ def main(argv: list[str] | None = None) -> int:
         help="also delete points for rows that are not approved_review",
     )
     args = parser.parse_args(argv)
+    source = args.csv or (None if review_sheet.is_configured() else unanswered_log_path())
     try:
         summary = sync_review_log(
-            args.csv or unanswered_log_path(),
+            source,
             dry_run=args.dry_run,
             prune=args.prune,
         )

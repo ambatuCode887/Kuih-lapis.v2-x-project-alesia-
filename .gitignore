@@ -13,3 +13,6 @@ build/
 training/models/*.joblib
 training/models/*.pkl
 training/models/*.pickle
+data/
+*service-account*.json
+secrets/
