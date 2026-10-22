@@ -102,10 +102,11 @@ def _cached_followups(results: list[dict], query: str) -> list[dict[str, str]]:
 class RetrievalAgent(BaseAgent):
     async def _run_async_impl(self, ctx: InvocationContext):
         content = ctx.user_content
+        content_parts = (content.parts or []) if content else []
         query = "\n".join(
             part.text
-            for part in (content.parts if content else [])
-            if getattr(part, "text", None)
+            for part in content_parts
+            if part.text
             and "[BEGIN UNTRUSTED ATTACHMENT DATA" not in part.text
             and "[Extracted attachment text;" not in part.text
         ).strip()

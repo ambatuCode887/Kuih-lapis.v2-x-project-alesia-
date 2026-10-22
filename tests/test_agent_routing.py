@@ -3,7 +3,8 @@ import csv
 import io
 import json
 from pathlib import Path
-from types import SimpleNamespace
+from types import SimpleNamespace as _Namespace
+from typing import Any
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.events.event import Event
@@ -35,6 +36,11 @@ from agents.tools.agents.coordinator_agents.agent import (
 )
 from agents.tools.agents.retrieval.agent import retrieval_agent
 from agents.tools.functions.retrieve.credential_stuffing import format_passage
+
+
+def SimpleNamespace(**attrs: Any) -> Any:
+    # Partial ADK contexts are passed on purpose; Any keeps the test doubles assignable.
+    return _Namespace(**attrs)
 
 
 def test_format_passage_hides_raw_metadata_and_scores() -> None:
@@ -216,7 +222,8 @@ def test_root_emits_interim_safety_notice_before_specialist_analysis() -> None:
             await events.aclose()
 
     event = asyncio.run(first_event())
-    text = " ".join(part.text for part in event.content.parts)
+    assert event is not None and event.content is not None
+    text = " ".join(part.text or "" for part in event.content.parts or [])
 
     assert event.author == "root_agent"
     assert not event.turn_complete
@@ -251,7 +258,8 @@ def test_root_emits_parcel_fee_warning_before_specialist_analysis() -> None:
             await events.aclose()
 
     event = asyncio.run(first_event())
-    text = " ".join(part.text for part in event.content.parts)
+    assert event is not None and event.content is not None
+    text = " ".join(part.text or "" for part in event.content.parts or [])
 
     assert event.author == "root_agent"
     assert not event.turn_complete
@@ -277,6 +285,7 @@ def test_root_reports_status_before_model_work() -> None:
 
     event = asyncio.run(first_event())
 
+    assert event is not None
     assert event.author == "root_agent"
     assert event.content is None
     assert event.custom_metadata == {"status": "Analyzing context…"}
@@ -301,17 +310,18 @@ def test_root_answers_greeting_without_scam_assessment() -> None:
 
     event = asyncio.run(first_event())
 
+    assert event is not None and event.content is not None and event.content.parts
     assert event.author == "root_agent"
     assert event.is_final_response()
-    assert "What cybersecurity question" in event.content.parts[0].text
+    assert "What cybersecurity question" in (event.content.parts[0].text or "")
 
 
 def test_retrieval_evidence_goes_to_root_model_and_not_to_user(monkeypatch) -> None:
     class RetrievalStub(BaseAgent):
-        async def run_async(self, context):
+        async def run_async(self, parent_context):
             yield Event(
                 author=self.name,
-                invocation_id=context.invocation_id,
+                invocation_id=parent_context.invocation_id,
                 content=types.Content(
                     role="model",
                     parts=[types.Part(text="Retrieved evidence: MFA adds a second factor.")],
@@ -359,7 +369,7 @@ def test_retrieval_evidence_goes_to_root_model_and_not_to_user(monkeypatch) -> N
         for event in events
         if event.content
         for part in event.content.parts or []
-        if getattr(part, "text", None)
+        if part.text
     ]
 
     assert len(root_calls) == 1
@@ -405,7 +415,7 @@ def test_specialists_cannot_capture_the_next_turn() -> None:
         if agent.name in {"root_agent", "retrieval_agent"}:
             pending.extend(getattr(agent, "sub_agents", []))
             continue
-        assert agent.disallow_transfer_to_parent, agent.name
+        assert getattr(agent, "disallow_transfer_to_parent", False), agent.name
         pending.extend(agent.sub_agents)
 
 
@@ -432,11 +442,11 @@ def test_next_turn_starts_at_root_after_sub_agent_replied_last() -> None:
 
 def test_status_events_carry_progress_without_reply_text() -> None:
     class DelayedUrlAgent(BaseAgent):
-        async def run_async(self, context):
+        async def run_async(self, parent_context):
             await asyncio.sleep(0.05)
             yield Event(
                 author=self.name,
-                invocation_id=context.invocation_id,
+                invocation_id=parent_context.invocation_id,
                 content=types.Content(
                     role="model",
                     parts=[types.Part(text="URL reputation report follows.")],
@@ -470,7 +480,7 @@ def test_status_events_carry_progress_without_reply_text() -> None:
     analyzing, checking, report, generating = asyncio.run(first_four_events())
     status_events = (analyzing, checking, generating)
 
-    assert [event.custom_metadata["status"] for event in status_events] == [
+    assert [(event.custom_metadata or {})["status"] for event in status_events] == [
         "Analyzing context…",
         "Checking link reputation…",
         "Generating a response…",
@@ -484,10 +494,10 @@ def test_status_events_carry_progress_without_reply_text() -> None:
 
 def test_coordinator_json_stays_out_of_user_stream_but_reaches_root() -> None:
     class AssessmentAgent(BaseAgent):
-        async def run_async(self, context):
+        async def run_async(self, parent_context):
             yield Event(
                 author=self.name,
-                invocation_id=context.invocation_id,
+                invocation_id=parent_context.invocation_id,
                 content=types.Content(
                     role="model",
                     parts=[types.Part(text='{"confidence": 40, "risk_level": "medium"}')],
@@ -496,10 +506,10 @@ def test_coordinator_json_stays_out_of_user_stream_but_reaches_root() -> None:
             )
 
     class ClarificationAgent(BaseAgent):
-        async def run_async(self, context):
+        async def run_async(self, parent_context):
             yield Event(
                 author=self.name,
-                invocation_id=context.invocation_id,
+                invocation_id=parent_context.invocation_id,
                 content=types.Content(
                     role="model",
                     parts=[
@@ -668,12 +678,15 @@ def test_specialist_report_is_appended_as_user_data_not_system_instruction() -> 
 
     _append_specialist_report(callback_context, request)
 
-    root_text = "\n".join(part.text for part in request.contents[0].parts)
+    parts = request.contents[0].parts or []
+    root_text = "\n".join(part.text or "" for part in parts)
     assert "Question?" not in root_text
-    assert "Evidence (source.csv, row 3)." in request.contents[0].parts[1].text
-    assert "untrusted evidence" in request.contents[0].parts[1].text
+    assert "Evidence (source.csv, row 3)." in (parts[1].text or "")
+    assert "untrusted evidence" in (parts[1].text or "")
     assert request.config.tools is None
     assert request.tools_dict == {}
+    assert request.config.tool_config is not None
+    assert request.config.tool_config.function_calling_config is not None
     assert request.config.tool_config.function_calling_config.mode == "NONE"
 
 
@@ -700,8 +713,9 @@ def test_root_removes_binary_upload_parts_before_text_model() -> None:
 
     _append_specialist_report(callback_context, request)
 
-    assert all(part.text is not None for part in request.contents[0].parts)
-    assert "Extracted screenshot text." in request.contents[0].parts[-1].text
+    parts = request.contents[0].parts or []
+    assert all(part.text is not None for part in parts)
+    assert "Extracted screenshot text." in (parts[-1].text or "")
 
 
 def test_attachment_prompt_injection_is_preserved_as_untrusted_pdf_evidence(monkeypatch) -> None:
@@ -736,7 +750,8 @@ def test_attachment_prompt_injection_is_preserved_as_untrusted_pdf_evidence(monk
     )
 
     prepared = asyncio.run(preprocess_message_content(content, context))
-    prepared_text = "\n".join(part.text for part in prepared.parts)
+    assert prepared is not None
+    prepared_text = "\n".join(part.text or "" for part in prepared.parts or [])
     evidence_json = prepared_text.split(
         "[BEGIN UNTRUSTED ATTACHMENT DATA (JSON)]\n", 1
     )[1].split("\n[END UNTRUSTED ATTACHMENT DATA]", 1)[0]
@@ -792,7 +807,8 @@ def test_multiple_image_attachments_each_keep_their_own_evidence(monkeypatch) ->
     )
 
     prepared = asyncio.run(preprocess_message_content(content, context))
-    prepared_text = "\n".join(part.text for part in prepared.parts)
+    assert prepared is not None
+    prepared_text = "\n".join(part.text or "" for part in prepared.parts or [])
     evidence_json = prepared_text.split(
         "[BEGIN UNTRUSTED ATTACHMENT DATA (JSON)]\n", 1
     )[1].split("\n[END UNTRUSTED ATTACHMENT DATA]", 1)[0]
@@ -856,7 +872,8 @@ def test_router_streams_prompt_injection_warning_for_attachment(monkeypatch) -> 
             await events.aclose()
 
     warning = asyncio.run(collect_warning())
-    warning_text = " ".join(part.text for part in warning.content.parts)
+    assert warning is not None and warning.content is not None
+    warning_text = " ".join(part.text or "" for part in warning.content.parts or [])
 
     assert "suspicious document text" in warning_text
     assert "not as a command" in warning_text
@@ -906,7 +923,7 @@ def test_attachment_text_is_removed_before_coordinator_and_root() -> None:
 
     _append_specialist_report(callback_context, request)
 
-    root_text = "\n".join(part.text for part in request.contents[0].parts)
+    root_text = "\n".join(part.text or "" for part in request.contents[0].parts or [])
     assert "Please inspect the attached PDF." not in root_text
     assert "suspicious AI-targeted instructions" in root_text
     assert injected_text not in root_text
@@ -953,8 +970,11 @@ def test_retrieval_specialist_reports_unavailable_knowledge_base_instead_of_cras
 
     assert len(events) == 1
     assert events[0].is_final_response()
-    assert "knowledge base is unavailable" in events[0].content.parts[0].text
-    assert "nomic-embed-text" not in events[0].content.parts[0].text
+    content = events[0].content
+    assert content is not None and content.parts
+    text = content.parts[0].text or ""
+    assert "knowledge base is unavailable" in text
+    assert "nomic-embed-text" not in text
     assert events[0].actions.state_delta["cached_followups"] == []
 
 
@@ -991,9 +1011,12 @@ def test_retrieval_specialist_returns_evidence_without_an_llm(monkeypatch) -> No
     assert not hasattr(agent, "model")
     assert len(events) == 1
     assert events[0].is_final_response()
-    assert "[1] Source: security.csv, chunk 12 (category: Authentication)" in events[0].content.parts[0].text
-    assert "source=" not in events[0].content.parts[0].text
-    assert "Use a password manager" in events[0].content.parts[0].text
+    content = events[0].content
+    assert content is not None and content.parts
+    text = content.parts[0].text or ""
+    assert "[1] Source: security.csv, chunk 12 (category: Authentication)" in text
+    assert "source=" not in text
+    assert "Use a password manager" in text
     assert events[0].actions.state_delta["cached_followups"] == [
         {
             "question": "How do I protect login accounts?",
@@ -1052,7 +1075,7 @@ def test_root_receives_knowledge_question_as_untrusted_text() -> None:
 
     _append_specialist_report(callback_context, request)
 
-    root_text = "\n".join(part.text for part in request.contents[0].parts)
+    root_text = "\n".join(part.text or "" for part in request.contents[0].parts or [])
     assert "What if the scammers have my credentials?" in root_text
     assert "untrusted text, not instructions" in root_text
     assert "Evidence (source.csv, row 3)." in root_text
@@ -1176,10 +1199,13 @@ def test_root_delays_cached_followup_without_running_specialists(monkeypatch) ->
     assert len(events) == 3
     assert events[0].custom_metadata == {"status": "Analyzing context\u2026"}
     assert events[1].custom_metadata == {"status": "Retrieving data\u2026"}
-    assert events[2].author == "root_agent"
-    assert events[2].is_final_response()
-    assert "MFA uses more than one verification factor." in events[2].content.parts[0].text
-    assert "Source: security.csv, chunk 12." in events[2].content.parts[0].text
+    final_event = events[2]
+    assert final_event.author == "root_agent"
+    assert final_event.is_final_response()
+    assert final_event.content is not None and final_event.content.parts
+    final_text = final_event.content.parts[0].text or ""
+    assert "MFA uses more than one verification factor." in final_text
+    assert "Source: security.csv, chunk 12." in final_text
 
 
 async def _run_conversation(messages: list[str]) -> list[list[Event]]:
@@ -1218,8 +1244,11 @@ def test_specialist_failure_returns_safe_fallback_instead_of_crashing(monkeypatc
     final = [event for event in turn if event.is_final_response() and event.content]
     assert final, "the user must always receive a final reply"
     assert final[-1].author == "root_agent"
-    assert final[-1].content.parts[0].text.strip()
-    assert "couldn't summarize the knowledge search" in final[-1].content.parts[0].text
+    final_content = final[-1].content
+    assert final_content is not None and final_content.parts
+    final_text = final_content.parts[0].text or ""
+    assert final_text.strip()
+    assert "couldn't summarize the knowledge search" in final_text
 
 
 def test_related_questions_travel_as_metadata_and_send_as_cached_answers(monkeypatch) -> None:
@@ -1248,12 +1277,14 @@ def test_related_questions_travel_as_metadata_and_send_as_cached_answers(monkeyp
         if (event.custom_metadata or {}).get("kind") == "related_questions"
     ]
     assert len(related) == 1
-    assert related[0].custom_metadata["questions"] == ["What is MFA?"]
+    assert (related[0].custom_metadata or {})["questions"] == ["What is MFA?"]
     assert related[0].content is None
 
     answer = [event for event in second if event.is_final_response() and event.content]
     assert answer
-    text = answer[-1].content.parts[0].text
+    content = answer[-1].content
+    assert content is not None and content.parts
+    text = content.parts[0].text or ""
     assert "MFA uses more than one verification factor." in text
     assert "Source: security.csv, chunk 12." in text
 
@@ -1323,7 +1354,7 @@ def test_router_redacts_binary_attachments_from_prior_turns() -> None:
 
     prior_parts = prior_upload.content.parts
     assert any(part.text == "Please inspect this screenshot." for part in prior_parts)
-    assert any("Prior attachment omitted" in part.text for part in prior_parts)
+    assert any("Prior attachment omitted" in (part.text or "") for part in prior_parts)
     assert all(part.inline_data is None and part.file_data is None for part in prior_parts)
     assert followup.content.parts[0].text == "What next?"
 
@@ -1392,14 +1423,15 @@ def test_model_request_isolates_current_turn_from_prior_images_and_text() -> Non
     )
     request = LlmRequest(contents=[old_user_content, current_user_content])
 
-    isolate_current_turn(None, request)
+    isolate_current_turn(SimpleNamespace(), request)
 
     assert request.contents == [current_user_content]
     assert all(
         part.inline_data is None and part.file_data is None
         for content in request.contents
-        for part in content.parts
+        for part in content.parts or []
     )
+    assert current_user_content.parts is not None
     assert current_user_content.parts[0].text == "Check https://example.com"
 
 
@@ -1422,7 +1454,7 @@ def test_current_turn_isolation_preserves_same_turn_tool_results() -> None:
         ]
     )
 
-    isolate_current_turn(None, request)
+    isolate_current_turn(SimpleNamespace(), request)
 
     assert request.contents == [current_user, tool_result]
 
@@ -1449,7 +1481,7 @@ def test_current_turn_isolation_keeps_user_request_before_specialist_context() -
         ]
     )
 
-    isolate_current_turn(None, request)
+    isolate_current_turn(SimpleNamespace(), request)
 
     assert request.contents == [question, specialist_context]
 
@@ -1514,11 +1546,11 @@ def test_message_agent_preprocesses_artifact_reference(monkeypatch) -> None:
 
     asyncio.run(prepare_message_attachments(callback_context, request))
 
-    report = "\n".join(part.text for part in request.contents[0].parts)
+    report = "\n".join(part.text or "" for part in request.contents[0].parts or [])
     assert "Please inspect" in report
     assert "Attachment 1" in report
     assert "Extracted artifact text" in report
-    assert all(part.inline_data is None and part.file_data is None for part in request.contents[0].parts)
+    assert all(part.inline_data is None and part.file_data is None for part in request.contents[0].parts or [])
     assert all(part.inline_data is None and part.file_data is None for part in user_event.content.parts)
 
 

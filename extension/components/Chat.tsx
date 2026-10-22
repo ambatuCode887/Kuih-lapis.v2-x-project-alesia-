@@ -31,7 +31,6 @@ import {
   PlusIcon,
   QuestionIcon,
   SendIcon,
-  ShieldCheckIcon,
   StopIcon,
 } from "./Icons";
 import Lightbox from "./Lightbox";

@@ -12,6 +12,8 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -32,10 +34,13 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
+    "eslint": "^9.39.5",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.0",
     "web-ext": "^10.5.0",
     "wxt": "^0.21.3"
   }

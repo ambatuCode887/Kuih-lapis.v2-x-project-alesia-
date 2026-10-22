@@ -44,7 +44,7 @@ def has_attachment(content: types.Content | None) -> bool:
     for part in content.parts or []:
         if getattr(part, "inline_data", None) or getattr(part, "file_data", None):
             return True
-        if getattr(part, "text", None) and _ARTIFACT_MARKER.search(part.text):
+        if part.text and _ARTIFACT_MARKER.search(part.text):
             return True
     return False
 
@@ -213,7 +213,8 @@ def _ocr_pdf(data: bytes, page_indexes: list[int]) -> dict[int, str]:
     pages = {}
     for page_index in page_indexes:
         page = document[page_index]
-        bitmap = page.render(scale=1.5)
+        # pypdfium2 accepts a float scale; pyright infers int from its unannotated default.
+        bitmap = page.render(scale=1.5)  # pyright: ignore[reportArgumentType]
         image = bitmap.to_pil()
         text = _ocr_image(image)
         if text:
@@ -325,7 +326,8 @@ async def prepare_message_attachments(
             user_content,
             invocation_context,
         )
-        user_content.parts = prepared_content.parts
+        if prepared_content is not None:
+            user_content.parts = prepared_content.parts
     isolate_current_turn(callback_context, llm_request)
 
 
@@ -424,5 +426,5 @@ async def preprocess_message_content(
             and event.invocation_id == invocation_context.invocation_id
             and event.content
         ):
-            event.content.parts = list(prepared_content.parts)
+            event.content.parts = list(prepared_content.parts or [])
     return prepared_content

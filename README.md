@@ -6,16 +6,18 @@ This project is a Google ADK multi-agent retrieval system that:
 
 - ingests local documents into Qdrant
 - chunks content with hybrid chunking (structure-aware + semantic boundaries)
-- embeds chunks with Google Gemini embeddings
+- embeds chunks with the configured embedding provider (Ollama by default)
 - retrieves relevant context for grounded answers
 - prepares Confluence publish payloads
 - publishes directly to Confluence through its REST API
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.13 (matches the `Dockerfile` and `pyproject.toml`)
+- Ollama, with `qwen2.5:7b` and `nomic-embed-text` pulled (the default LLM and embedding providers)
 - Docker Desktop (for the local Qdrant container)
-- A Google API key for Gemini embeddings
+- Node.js and npm (for the browser extension)
+- Optional: a Google API key (`GOOGLE_API_KEY`) if you use Gemini
 - Optional: Confluence credentials if you want direct publishing
 
 ## 1. Create your local environment
@@ -87,21 +89,23 @@ Optional: disable semantic chunking and use the fallback fixed-size chunker:
 
 First make sure your evaluation dataset has cases in `agents/tools/knowledge/dataset.csv`.
 
-Then run:
+Then run the keyword-recall baseline, which does not need the LLM judge:
 
 ```powershell
-.\.venv\Scripts\python -m agents.eval.ragas
+.\.venv\Scripts\python -m agents.eval.ragas --keyword-only
 ```
 
-This writes a report to `.artifacts/retrieval-report.json`.
+This writes a report to `.artifacts/retrieval-report.json`. Without `--keyword-only`, the command runs the RAGAS judge metrics against the local Ollama models and writes `.artifacts/ragas-report.json`.
 
-## 6. Start the ADK web app
+## 6. Start the backend API server
+
+The browser extension calls the ADK API server, so start this command (not `adk web`):
 
 ```powershell
-.\.venv\Scripts\adk web
+.\.venv\Scripts\adk.exe api_server agents --port 8000 --host 127.0.0.1 --allow_origins 'regex:chrome-extension://(gjicmadlhaabnjngkinahbedaghaiblf|mhpjopnhfojchhjimknnpoafcgmgjpak)'
 ```
 
-Then open the local URL shown in the terminal (typically `http://127.0.0.1:8000`).
+The server listens on `http://127.0.0.1:8000`. The `--allow_origins` regex lists the extension IDs allowed to call it; update it if your unpacked extension has a different ID.
 
 ### PDF and image attachments
 
@@ -109,6 +113,38 @@ Attachment analysis extracts text from PDFs and uses local Tesseract OCR for
 screenshots and scanned PDF pages. Install Tesseract OCR and ensure `tesseract`
 is available on `PATH`; set `TESSERACT_CMD` if its executable is elsewhere.
 Uploads are limited to 20 MB and PDF processing to the first 20 pages.
+
+### Browser extension
+
+The extension in `extension/` is a WXT and React side panel. It needs the backend from section 6 running on `http://127.0.0.1:8000`. Setup, run, and build steps are in [extension/README.md](extension/README.md).
+
+### Agent integrity manifest
+
+`agents/agent_manifest.json` stores a fingerprint of every agent's description and instruction. At startup, `agents/agent.py` compares the live agents with the manifest and refuses to start if they differ.
+
+After any change to a `prompt.md` file or an agent description, run:
+
+```powershell
+.\.venv\Scripts\python -m agents.integrity
+```
+
+Then commit the updated `agents/agent_manifest.json` with the change. Setting `AGENT_MANIFEST_UPDATE=1` skips the check. Only the update command should set it; never set it in production.
+
+### Docker
+
+The `Dockerfile` builds the backend API server image on Python 3.13. `.dockerignore` excludes `.env`, so secrets are not copied into the image.
+
+If you changed any prompt or agent description, run the integrity command above before building, because the image includes `agents/agent_manifest.json`.
+
+```powershell
+docker build -t multi-agentic-cybersecurity .
+docker run -p 8000:8000 --env-file .env multi-agentic-cybersecurity
+```
+
+- Inside the container, `localhost` refers to the container itself. Point `QDRANT_URL` and `OLLAMA_BASE_URL` at a reachable address, for example `http://host.docker.internal:6333` and `http://host.docker.internal:11434` on Docker Desktop, or use a remote Qdrant URL.
+- The container runs as a non-root user. `agents/` is read-only; only `data/` is writable.
+- The default start command does not include the `--allow_origins` option used for local extension runs.
+- On Render, set the same variables in the service environment instead of using `--env-file`. Render injects `PORT`.
 
 ## 7. Optional: publish to Confluence
 
@@ -169,9 +205,29 @@ Check that Docker Desktop is running and that the Qdrant container is started on
 Verify that Ollama is running, `EMBEDDING_MODEL` is installed, and its vector
 dimension matches `EMBEDDING_DIM`.
 
-### `adk web` fails to start
+### `adk api_server` fails to start
 
 Make sure the virtual environment is active and dependencies were installed from `requirements.txt`.
+
+### `Agent definitions changed without updating the manifest`
+
+A prompt or agent description changed. Run `.\.venv\Scripts\python -m agents.integrity`, then restart the server.
+
+## Lint, type checks, and baseline
+
+Install the pinned dev tools (ruff and pyright) into the same virtual environment:
+
+```powershell
+.\.venv\Scripts\pip install -r requirements-dev.txt
+```
+
+From the project root, run:
+
+```powershell
+.\.venv\Scripts\python scripts\lint_baseline.py
+```
+
+This compares ruff and pyright findings with `lint-baseline.json` and fails only on new findings. Run it with `--update` to accept the current findings as the new baseline. Pyright needs Node.js.
 
 ## Main workflow summary
 
@@ -179,7 +235,7 @@ Make sure the virtual environment is active and dependencies were installed from
 2. start Qdrant
 3. run `python -m agents.eval.smoke`
 4. run `python -m agents.eval.ingest agents/tools/knowledge/data.md`
-5. run `python -m agents.eval.ragas`
-6. start `adk web`
+5. run `python -m agents.eval.ragas --keyword-only`
+6. start the backend with `adk.exe api_server` (section 6)
 
 This is the recommended local setup for running the project on a fresh machine.
