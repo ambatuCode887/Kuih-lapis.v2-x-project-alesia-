@@ -805,7 +805,7 @@ def test_multiple_image_attachments_each_keep_their_own_evidence(monkeypatch) ->
 
 
 def test_router_streams_prompt_injection_warning_for_attachment(monkeypatch) -> None:
-    async def fake_preprocess(user_content, invocation_context):
+    async def fake_preprocess(user_content, invocation_context, **_):
         return types.Content(
             role="user",
             parts=[

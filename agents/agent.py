@@ -24,16 +24,19 @@ from agents.tools.agents.message_agents.attachments import (
     targets_ai_instructions,
 )
 from agents.tools.agents.message_agents.agent import message_agent
+from agents.tools.agents.message_agents.qr import qr_link_hosts
 from agents.tools.agents.url_check.agent import url_check_agent
 from agents.tools.agents.url_check.domain_check import (
     check_domain_counts,
     domain_from_request,
     download_assessment,
     download_source_from_request,
+    qr_link_assessment,
 )
 from agents.tools.agents.retrieval.agent import retrieval_agent
 from agents.tools.agents.coordinator_agents.agent import (
     coordinator_agent,
+    merge_assessments,
     parse_assessment,
     select_follow_up_agent,
 )
@@ -770,6 +773,7 @@ class RequestRouter(Agent):
         )
         user_request = request
         attachment_present = has_attachment(content)
+        qr_payloads: list[str] = []
         if _requests_private_internals(user_request):
             yield Event(
                 author=self.name,
@@ -840,7 +844,7 @@ class RequestRouter(Agent):
 
         if attachment_present:
             yield _status_event(self.name, ctx.invocation_id, "Extracting attachment text\u2026")
-            content = await preprocess_message_content(content, ctx)
+            content = await preprocess_message_content(content, ctx, qr_sink=qr_payloads)
             ctx.user_content = content
             request = " ".join(
                 part.text
@@ -932,6 +936,9 @@ class RequestRouter(Agent):
             attachment_present=attachment_present,
             user_request=user_request,
         )
+        qr_hosts = qr_link_hosts(qr_payloads)
+        if qr_hosts:
+            target_name = "message_agent"
         if target_name == "retrieval_agent":
             ctx.session.state[_ROOT_QUESTION_STATE_KEY] = user_request
         else:
@@ -948,6 +955,12 @@ class RequestRouter(Agent):
             ctx.invocation_id,
             _AGENT_STATUS.get(target_name, "Analyzing context\u2026"),
         )
+
+        qr_assessments: list[dict] = []
+        for host in qr_hosts:
+            yield _status_event(self.name, ctx.invocation_id, _AGENT_STATUS["url_check_agent"])
+            counts = await check_domain_counts(host, ctx)
+            qr_assessments.append(qr_link_assessment(host, counts))
 
         domain = None
         if target_name == "url_check_agent" and not attachment_present:
@@ -989,6 +1002,10 @@ class RequestRouter(Agent):
         final_report = initial_report
         if requires_coordinator_followup(target_name):
             assessment = parse_assessment(initial_report)
+            if qr_assessments:
+                assessment = merge_assessments(
+                    [item for item in (assessment, *qr_assessments) if item is not None]
+                )
             ctx.session.state["coordinator_assessment"] = assessment
             _restore_root_user_request(ctx)
             coordinator = next(
@@ -1011,8 +1028,11 @@ class RequestRouter(Agent):
             except Exception:
                 # The specialist report is still usable; answer from it.
                 logger.exception("Coordinator failed; continuing with the specialist report.")
+            qr_report = "".join(
+                f"\n\nQR code link check:\n{json.dumps(item)}" for item in qr_assessments
+            )
             final_report = (
-                f"Assessment from {target_name}:\n{initial_report}\n\n"
+                f"Assessment from {target_name}:\n{initial_report}{qr_report}\n\n"
                 f"{follow_up_name} result:\n{follow_up_report}"
             )
 

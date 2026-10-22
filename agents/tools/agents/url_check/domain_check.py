@@ -77,6 +77,18 @@ def download_assessment(domain: str, counts: dict[str, int] | None) -> dict[str,
     }
 
 
+def qr_link_assessment(host: str, counts: dict[str, int] | None) -> dict[str, Any]:
+    """Build the url_check assessment for a web link decoded from a QR code."""
+    assessment = download_assessment(host, counts)
+    assessment["assessment"] = f"The QR code links to {host}. {assessment['assessment']}"
+    assessment["recommended_actions"] = [
+        "Do not open the QR link or enter details until you verify it through the "
+        "organization's official channel."
+    ]
+    assessment["limitations"] = ["Only the domain was checked, not the full link."]
+    return assessment
+
+
 def detection_counts(result: Any) -> dict[str, int] | None:
     """Read malicious and suspicious counts from a get_domain_report tool result."""
     if not isinstance(result, dict) or "error" in result:
