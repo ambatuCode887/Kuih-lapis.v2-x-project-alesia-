@@ -11,3 +11,4 @@ def isolate_unanswered_fallback(monkeypatch, tmp_path):
         no_model_answer,
     )
     monkeypatch.setenv("UNANSWERED_LOG_PATH", str(tmp_path / "unanswered.csv"))
+    monkeypatch.setenv("REVIEW_SHEET_ID", "")
