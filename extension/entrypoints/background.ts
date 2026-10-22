@@ -1,5 +1,16 @@
 import { askAgent } from '@/lib/api';
 import { isCleanDomain } from '@/lib/domainStats';
+import {
+  REMINDER_ALARM,
+  REMINDER_KEY,
+  REMINDER_NOTIFICATION,
+  REMINDER_PERIOD_MINUTES,
+  REMINDER_TIP_KEY,
+  isReminderInterval,
+  pickReminderMessage,
+  type ReminderInterval,
+  type ReminderTip,
+} from '@/lib/reminders';
 
 const MENU_SELECTION = 'check-selection';
 const MENU_LINK = 'check-link';
@@ -199,9 +210,46 @@ async function closeSidePanel(): Promise<void> {
   await browser.sidePanel.setOptions({ enabled: true });
 }
 
+async function readReminderInterval(): Promise<ReminderInterval> {
+  const stored = await browser.storage.local.get(REMINDER_KEY);
+  const value = stored[REMINDER_KEY];
+  return isReminderInterval(value) ? value : 'off';
+}
+
+/**
+ * Make the alarm match the chosen interval. Unless forced, an alarm that already has the
+ * right period is kept, so restarting this background script does not reset the timer.
+ */
+async function syncReminderAlarm(interval: ReminderInterval, force = false): Promise<void> {
+  const existing = await browser.alarms.get(REMINDER_ALARM);
+  if (interval === 'off') {
+    if (existing) await browser.alarms.clear(REMINDER_ALARM);
+    return;
+  }
+  const period = REMINDER_PERIOD_MINUTES[interval];
+  if (!force && existing?.periodInMinutes === period) return;
+  await browser.alarms.create(REMINDER_ALARM, { periodInMinutes: period });
+}
+
+async function showReminder(): Promise<void> {
+  const message = pickReminderMessage();
+  const tip: ReminderTip = { message, at: Date.now() };
+  await browser.storage.local.set({ [REMINDER_TIP_KEY]: tip });
+  await browser.notifications.create(REMINDER_NOTIFICATION, {
+    type: 'basic',
+    iconUrl: browser.runtime.getURL('/icon/128.png'),
+    title: 'Project Alesia reminder',
+    message,
+    requireInteraction: true,
+  });
+}
+
 export default defineBackground(() => {
   // Clicking the toolbar icon opens the side panel.
   browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+
+  // Service workers restart often, so re-check the schedule instead of assuming it survived.
+  void readReminderInterval().then((interval) => syncReminderAlarm(interval));
 
   browser.runtime.onMessage.addListener((message: unknown) => {
     if ((message as { type?: string } | null)?.type !== 'close-side-panel') return;
@@ -231,6 +279,28 @@ export default defineBackground(() => {
       return;
     }
     return handleDownloadReviewAction(action as DownloadReviewAction);
+  });
+
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name !== REMINDER_ALARM) return;
+    void (async () => {
+      // The setting can change between scheduling and firing, so check it again.
+      if ((await readReminderInterval()) === 'off') {
+        await browser.alarms.clear(REMINDER_ALARM);
+        return;
+      }
+      await showReminder();
+    })();
+  });
+
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !(REMINDER_KEY in changes)) return;
+    const next = changes[REMINDER_KEY]?.newValue;
+    void syncReminderAlarm(isReminderInterval(next) ? next : 'off', true);
+  });
+
+  browser.notifications.onClicked.addListener((id) => {
+    if (id === REMINDER_NOTIFICATION) void browser.notifications.clear(id);
   });
 
   browser.runtime.onInstalled.addListener(() => {

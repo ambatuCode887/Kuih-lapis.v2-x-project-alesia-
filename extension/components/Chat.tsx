@@ -14,8 +14,9 @@ import { askAgent, isAbortError, resetSession } from "@/lib/api";
 import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
 import { useTheme } from "@/lib/theme";
-import AppearanceMenu from "./AppearanceMenu";
+import { REMINDER_TIP_KEY, type ReminderTip } from "@/lib/reminders";
 import DownloadWarning from "./DownloadWarning";
+import SettingsMenu from "./SettingsMenu";
 import {
   CloseIcon,
   ArrowIcon,
@@ -231,6 +232,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const { theme, chooseTheme } = useTheme();
+  // The latest awareness reminder. It stays until the user dismisses it.
+  const [reminderTip, setReminderTip] = useState<ReminderTip | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -240,6 +243,26 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const abortRef = useRef<AbortController | null>(null);
   const sendTextRef = useRef(sendText);
   sendTextRef.current = sendText;
+
+  // Show the latest awareness reminder until the user dismisses it.
+  useEffect(() => {
+    browser.storage.local.get(REMINDER_TIP_KEY).then((result) => {
+      const saved = result[REMINDER_TIP_KEY] as ReminderTip | undefined;
+      if (saved?.message) setReminderTip(saved);
+    });
+    const onTipChange = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area !== "local" || !(REMINDER_TIP_KEY in changes)) return;
+      const next = changes[REMINDER_TIP_KEY]?.newValue as ReminderTip | undefined;
+      setReminderTip(next?.message ? next : null);
+    };
+    browser.storage.onChanged.addListener(onTipChange);
+    return () => browser.storage.onChanged.removeListener(onTipChange);
+  }, []);
+
+  function dismissReminderTip() {
+    setReminderTip(null);
+    void browser.storage.local.remove(REMINDER_TIP_KEY);
+  }
 
   // Load saved history, and keep both views (panel and tab) in sync.
   useEffect(() => {
@@ -800,8 +823,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                 ))}
             </div>
           </div>
-          <div className="appearance-dock">
-            <AppearanceMenu theme={theme} onChange={chooseTheme} />
+          <div className="settings-dock">
+            <SettingsMenu theme={theme} onChangeTheme={chooseTheme} />
           </div>
         </aside>
       )}
@@ -1101,6 +1124,15 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           </p>
         )}
       </div>
+      {reminderTip && (
+        <div className="reminder-toast" role="status" aria-live="polite">
+          <span className="reminder-toast-title">Awareness tip</span>
+          <p className="reminder-toast-text">{reminderTip.message}</p>
+          <button type="button" className="ghost reminder-toast-close" onClick={dismissReminderTip}>
+            Got it
+          </button>
+        </div>
+      )}
       {preview && <Lightbox src={preview} onClose={() => setPreview(null)} />}
     </div>
   );
