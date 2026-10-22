@@ -36,6 +36,53 @@ def select_follow_up_agent(assessment: dict[str, Any] | None) -> str:
 	return "verification_agent"
 
 
+def _is_number(value: Any) -> bool:
+	return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _risk_level(score: int | None) -> str:
+	if score is None:
+		return "insufficient_information"
+	if score >= 75:
+		return "critical"
+	if score >= 50:
+		return "high"
+	if score >= 25:
+		return "moderate"
+	return "low"
+
+
+def merge_assessments(assessments: list[dict[str, Any]]) -> dict[str, Any]:
+	"""Combine channel assessments: the highest score is kept and the lowest confidence gates routing."""
+	scores = [a["risk_score"] for a in assessments if _is_number(a.get("risk_score"))]
+	score = max(scores) if scores else None
+	confidences = [
+		a["confidence"] if _is_number(a.get("confidence")) else 0 for a in assessments
+	]
+	actions: list[str] = []
+	for assessment in assessments:
+		for action in assessment.get("recommended_actions") or []:
+			if isinstance(action, str) and action not in actions:
+				actions.append(action)
+	return {
+		"risk_score": score,
+		"risk_level": _risk_level(score),
+		"confidence": min(confidences) if confidences else 0,
+		"indicators": [
+			indicator
+			for assessment in assessments
+			for indicator in assessment.get("indicators") or []
+			if isinstance(indicator, dict)
+		],
+		"assessment": " ".join(
+			a["assessment"].strip()
+			for a in assessments
+			if isinstance(a.get("assessment"), str) and a["assessment"].strip()
+		),
+		"recommended_actions": actions,
+	}
+
+
 def parse_assessment(text: str) -> dict[str, Any] | None:
 	for match in reversed(list(_ASSESSMENT_BLOCK.finditer(text))):
 		try:

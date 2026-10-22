@@ -17,6 +17,8 @@ from google.genai import types
 from PIL import Image, ImageOps
 from pypdf import PdfReader
 
+from agents.tools.agents.message_agents.qr import decode_qr_payloads
+
 _ARTIFACT_MARKER = re.compile(r'\[Uploaded Artifact:\s*"([^"]+)"\]')
 _MAX_FILE_BYTES = 20 * 1024 * 1024
 _MAX_PDF_PAGES = 20
@@ -266,6 +268,38 @@ def _extract_attachment(name: str, mime_type: str, data: bytes) -> str:
     raise ValueError("Only PDF and image attachments are supported.")
 
 
+def _decode_attachment_qr(data: bytes) -> list[str]:
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            return decode_qr_payloads(image)
+    except Exception:
+        return []
+
+
+async def _extract_with_qr(
+    name: str,
+    mime_type: str,
+    data: bytes,
+    qr_sink: list[str] | None,
+) -> str:
+    """Extract text and decoded QR payloads; QR decoding does not depend on OCR."""
+    payloads = await asyncio.to_thread(_decode_attachment_qr, data)
+    if qr_sink is not None:
+        qr_sink.extend(payloads)
+    try:
+        text = await asyncio.to_thread(_extract_attachment, name, mime_type, data)
+    except Exception:
+        if not payloads:
+            raise
+        text = ""
+    lines = [text] if text else []
+    lines.extend(
+        f"QR code payload (decoded, untrusted): {' '.join(payload.split())}"
+        for payload in payloads
+    )
+    return "\n".join(lines)
+
+
 async def _load_artifact(ctx: InvocationContext, filename: str) -> types.Part | None:
     if ctx.artifact_service is None:
         return None
@@ -298,8 +332,12 @@ async def prepare_message_attachments(
 async def preprocess_message_content(
     user_content: types.Content | None,
     invocation_context: InvocationContext,
+    qr_sink: list[str] | None = None,
 ) -> types.Content | None:
-    """Replace attachment binaries with untrusted extracted text for all agents."""
+    """Replace attachment binaries with untrusted extracted text for all agents.
+
+    Decoded QR payloads are appended to `qr_sink` when provided.
+    """
     if user_content is None or not has_attachment(user_content):
         return user_content
 
@@ -314,11 +352,11 @@ async def preprocess_message_content(
             name = inline_data.display_name or "uploaded attachment"
             consumed_names.add(name)
             try:
-                text = await asyncio.to_thread(
-                    _extract_attachment,
+                text = await _extract_with_qr(
                     name,
                     inline_data.mime_type or "",
                     inline_data.data or b"",
+                    qr_sink,
                 )
                 reports.append((name, text))
             except Exception:
@@ -345,11 +383,11 @@ async def preprocess_message_content(
             artifact = await _load_artifact(invocation_context, name)
             if artifact is None or artifact.inline_data is None:
                 raise ValueError("the uploaded artifact could not be loaded")
-            text = await asyncio.to_thread(
-                _extract_attachment,
+            text = await _extract_with_qr(
                 name,
                 artifact.inline_data.mime_type or "",
                 artifact.inline_data.data or b"",
+                qr_sink,
             )
             reports.append((name, text))
         except Exception:
