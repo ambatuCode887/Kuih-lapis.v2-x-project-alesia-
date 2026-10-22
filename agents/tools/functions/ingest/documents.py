@@ -25,6 +25,12 @@ TEXT_SUFFIXES = {
     ".htm",
 }
 SUPPORTED_SUFFIXES = TEXT_SUFFIXES | {".pdf", ".docx"}
+EVAL_CSV_FIELDS = {"id", "question", "reference_answer", "expected_keywords"}
+
+
+def _is_eval_csv(text: str) -> bool:
+    header = next(csv.reader(io.StringIO(text)), [])
+    return EVAL_CSV_FIELDS <= {field.strip().casefold() for field in header}
 
 
 def _read_text_file(path: Path) -> str:
@@ -221,7 +227,38 @@ def ingest_texts(
         )
         for index, (text, vector) in enumerate(zip(texts, vectors))
     ]
-    return upsert_points(points)
+    result = upsert_points(points)
+    result["replaced"] = _delete_points_outside(source, metadata.get("file_path"), {str(point.id) for point in points})
+    return result
+
+
+def _delete_points_outside(source: str, file_path: str | None, keep_ids: set[str]) -> int:
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+    qdrant = client()
+    cfg = settings()
+    must = [FieldCondition(key="source", match=MatchValue(value=source))]
+    if file_path is not None:
+        must.append(FieldCondition(key="file_path", match=MatchValue(value=file_path)))
+
+    stale_ids: list[str] = []
+    offset = None
+    while True:
+        points, offset = qdrant.scroll(
+            collection_name=cfg.collection,
+            scroll_filter=Filter(must=must),
+            limit=256,
+            offset=offset,
+            with_payload=False,
+            with_vectors=False,
+        )
+        stale_ids.extend(str(point.id) for point in points if str(point.id) not in keep_ids)
+        if offset is None:
+            break
+
+    if stale_ids:
+        qdrant.delete(collection_name=cfg.collection, points_selector=stale_ids, wait=True)
+    return len(stale_ids)
 
 
 def _ingest_qa_csv_records(
@@ -250,25 +287,6 @@ def _ingest_qa_csv_records(
 
     qdrant = client()
     cfg = settings()
-    existing_ids = []
-    offset = None
-    while True:
-        existing_points, offset = qdrant.scroll(
-            collection_name=cfg.collection,
-            limit=256,
-            offset=offset,
-            with_payload=["source", "file_name", "file_path"],
-            with_vectors=False,
-        )
-        existing_ids.extend(
-            point.id
-            for point in existing_points
-            if (point.payload or {}).get("source") == source
-            and (point.payload or {}).get("file_path") == str(document_path)
-        )
-        if offset is None:
-            break
-
     for start in range(0, len(points), 64):
         qdrant.upsert(
             collection_name=cfg.collection,
@@ -276,21 +294,13 @@ def _ingest_qa_csv_records(
             wait=True,
         )
 
-    new_ids = {str(point.id) for point in points}
-    stale_ids = [point_id for point_id in existing_ids if str(point_id) not in new_ids]
-    if stale_ids:
-        qdrant.delete(
-            collection_name=cfg.collection,
-            points_selector=stale_ids,
-            wait=True,
-        )
-
+    replaced = _delete_points_outside(source, str(document_path), {str(point.id) for point in points})
     return {
         "collection": cfg.collection,
         "source": source,
         "rows": len(records),
         "upserted": len(points),
-        "replaced": len(stale_ids),
+        "replaced": replaced,
     }
 
 
@@ -300,15 +310,19 @@ def ingest_file_to_qdrant(
     chunk_size: int = 1200,
     overlap: int = 180,
     semantic: bool = True,
+    allow_eval_dataset: bool = False,
 ) -> dict[str, Any]:
     """Load a local file, chunk it, embed chunks, and store them in Qdrant."""
     document_path = Path(path).expanduser().resolve()
     text = _read_text_file(document_path)
+    if document_path.suffix.lower() == ".csv" and not allow_eval_dataset and _is_eval_csv(text):
+        raise ValueError(f"{document_path.name} is an evaluation dataset; it is not ingested into the knowledge base.")
     if document_path.suffix.lower() == ".csv":
         qa_records = _qa_csv_records(text)
         if qa_records is not None:
             if not qa_records:
-                return {"source": str(document_path), "upserted": 0, "message": "No complete Q&A rows found."}
+                replaced = _delete_points_outside(source or str(document_path), str(document_path), set())
+                return {"source": str(document_path), "upserted": 0, "replaced": replaced, "message": "No complete Q&A rows found."}
             return _ingest_qa_csv_records(
                 document_path,
                 source or str(document_path),
@@ -326,7 +340,8 @@ def ingest_file_to_qdrant(
         else chunk_text(text, chunk_size=chunk_size, overlap=overlap)
     )
     if not chunks:
-        return {"source": str(document_path), "upserted": 0, "message": "No text found."}
+        replaced = _delete_points_outside(source or str(document_path), str(document_path), set())
+        return {"source": str(document_path), "upserted": 0, "replaced": replaced, "message": "No text found."}
     return ingest_texts(
         texts=chunks,
         source=source or str(document_path),

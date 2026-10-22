@@ -5,6 +5,7 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 
 from agents.config import agent_model, required_env
+from agents.scope import SCOPE_RULES
 from agents.tools.agents.message_agents.attachments import isolate_current_turn
 
 PROMPT_PATH = Path(__file__).with_name("prompt.md")
@@ -36,7 +37,7 @@ def url_check_agent() -> Agent:
             "Checks domain, URL and IP reputation using VirusTotal threat "
             "intelligence and returns a structured verdict."
         ),
-        instruction=PROMPT_PATH.read_text(encoding="utf-8"),
+        instruction=PROMPT_PATH.read_text(encoding="utf-8") + SCOPE_RULES,
         tools=[virustotal_toolset()],
         mode="single_turn",
         disallow_transfer_to_parent=True,
