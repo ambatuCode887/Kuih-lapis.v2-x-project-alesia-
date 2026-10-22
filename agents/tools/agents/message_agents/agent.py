@@ -3,6 +3,7 @@ from pathlib import Path
 from google.adk.agents.llm_agent import Agent
 
 from agents.config import agent_model
+from agents.scope import SCOPE_RULES
 from agents.tools.agents.message_agents.attachments import prepare_message_attachments
 
 
@@ -28,7 +29,7 @@ def message_agent() -> Agent:
 			"Analyzes user-provided messages for scam and spam indicators, "
 			"with evidence-based risk guidance."
 		),
-		instruction=_PROMPT.read_text(encoding="utf-8") + _EVIDENCE_RULES,
+		instruction=_PROMPT.read_text(encoding="utf-8") + _EVIDENCE_RULES + SCOPE_RULES,
 		mode="single_turn",
 		disallow_transfer_to_parent=True,
 		disallow_transfer_to_peers=True,
