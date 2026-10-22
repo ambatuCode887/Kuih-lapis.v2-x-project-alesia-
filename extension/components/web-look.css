@@ -478,6 +478,40 @@ body {
   font-weight: 600;
 }
 
+/* Awareness reminder: floats over the panel, not inside the chat. */
+.app > .reminder-toast {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--line-strong);
+  border-left: 8px solid var(--pine);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.3);
+}
+.reminder-toast-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.reminder-toast-text {
+  flex: 1 1 180px;
+  margin: 0;
+  font-weight: 600;
+}
+.reminder-toast-close {
+  margin-left: auto;
+}
+
 /* ───────── History sidebar: minimise to a thin strip ───────── */
 .rail {
   transition: width 0.25s ease, padding 0.25s ease;
@@ -733,36 +767,34 @@ body {
 }
 
 
-/* ───────── Appearance menu (replaces the sun / moon button) ───────── */
-.appearance {
+/* ───────── Settings menu (gear button: reminders and appearance) ───────── */
+.settings {
   position: relative;
 }
-.appearance-btn {
+.settings-btn {
   min-height: 44px;
   padding: 6px 14px;
   font-weight: 700;
 }
-.appearance-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
+.settings-menu {
+  position: fixed;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 170px;
-  padding: 6px;
+  gap: 14px;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+  padding: 12px;
   border: 2px solid var(--line-strong);
   border-radius: 16px;
   background: var(--card);
   box-shadow: 0 18px 40px rgb(0 0 0 / 0.3);
   color: var(--ink);
 }
-.rail .appearance-menu {
-  right: auto;
-  left: 0;
-}
-.appearance-option {
+.appearance-option,
+.settings-option {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -777,10 +809,12 @@ body {
   text-align: left;
   cursor: pointer;
 }
-.appearance-option:hover {
+.appearance-option:hover,
+.settings-option:hover {
   background: color-mix(in srgb, var(--pine) 16%, transparent);
 }
-.appearance-option.is-on {
+.appearance-option.is-on,
+.settings-option.is-on {
   background: color-mix(in srgb, var(--pine) 24%, transparent);
   box-shadow: inset 0 0 0 2px var(--pine);
 }
@@ -797,26 +831,68 @@ body {
   background: linear-gradient(135deg, #150b0f 50%, #e5566d 50%);
 }
 
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-heading {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.settings-hint {
+  margin: 0;
+  color: var(--ink-soft, var(--ink));
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-themes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+}
+.settings-themes .appearance-option {
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.settings-radio {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+}
+.settings-option.is-on .settings-radio {
+  border-color: var(--pine);
+  background: radial-gradient(circle, var(--pine) 45%, transparent 50%);
+}
 
-/* ───────── Appearance button: bottom left ───────── */
-.appearance-dock {
+
+/* ───────── Settings button: bottom left ───────── */
+.settings-dock {
   margin-top: auto;
   padding-top: 8px;
 }
-.appearance-dock--panel {
+.settings-dock--panel {
   display: flex;
   justify-content: flex-start;
   margin-top: 0;
   padding: 0 12px 8px;
 }
-/* The menu opens upward, because the button sits at the bottom. */
-.appearance-dock .appearance-menu {
-  top: auto;
-  bottom: calc(100% + 6px);
-  right: auto;
-  left: 0;
-}
-.rail--min .appearance-btn {
+/* The menu opens upward, because the button sits at the bottom. Its position is set in SettingsMenu. */
+.rail--min .settings-btn {
   padding: 6px 4px;
   font-size: 0.75rem;
 }
@@ -827,8 +903,8 @@ body {
   display: none;
 }
 
-/* ───────── Appearance button: clearly visible without hovering ───────── */
-.appearance-btn {
+/* ───────── Settings button: clearly visible without hovering ───────── */
+.settings-btn {
   border: 2px solid var(--line-strong);
   background: color-mix(in srgb, var(--card) 85%, transparent);
   -webkit-backdrop-filter: blur(12px);
@@ -836,7 +912,7 @@ body {
   color: var(--ink);
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
 }
-.appearance-btn:hover:not(:disabled) {
+.settings-btn:hover:not(:disabled) {
   border-color: var(--pine);
   background: color-mix(in srgb, var(--pine) 18%, var(--card));
   color: var(--ink);
@@ -989,7 +1065,7 @@ body {
 
 /* ───────── Side panel: the same left sidebar as the full tab ─────────
    The panel is narrow, so the sidebar sits on top of the chat as a drawer. It starts as a
-   slim strip (logo, open button, new check, appearance) and opens to the full sidebar. */
+   slim strip (logo, open button, new check, settings) and opens to the full sidebar. */
 .app-panel {
   position: relative;
   padding-left: 64px;
@@ -1010,18 +1086,15 @@ body {
 .app-panel .rail--min .rail-head {
   align-items: center;
 }
-/* In the thin strip, "Appearance" shortens to "Aa" so it fits. */
-.rail--min .appearance-btn {
+/* In the thin strip, the label is replaced by a "Aa" text stand-in. */
+.rail--min .settings-btn {
   font-size: 0;
   padding: 6px 0;
   width: 44px;
 }
-.rail--min .appearance-btn::before {
+.rail--min .settings-btn::before {
   content: 'Aa';
   font-size: 1rem;
-}
-.rail--min .appearance-menu {
-  left: 0;
 }
 .app-panel .bar {
   padding-left: 12px;
@@ -1326,11 +1399,11 @@ body {
 }
 
 
-/* ───────── Appearance button in the closed strip: half-sun, half-moon icon ───────── */
-.appearance-icon {
+/* ───────── Settings button in the closed strip: gear icon ───────── */
+.settings-icon {
   display: none;
 }
-.rail--min .appearance-btn {
+.rail--min .settings-btn {
   display: grid;
   place-items: center;
   width: 44px;
@@ -1338,14 +1411,14 @@ body {
   padding: 0;
   font-size: 1rem;
 }
-.rail--min .appearance-btn::before {
+.rail--min .settings-btn::before {
   content: none;
 }
-.rail--min .appearance-icon {
+.rail--min .settings-icon {
   display: block;
 }
 /* The word stays for screen readers but is not drawn in the narrow strip. */
-.rail--min .appearance-label {
+.rail--min .settings-label {
   position: absolute;
   width: 1px;
   height: 1px;
