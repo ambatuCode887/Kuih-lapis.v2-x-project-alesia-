@@ -11,6 +11,7 @@ from google.genai import types
 from google.adk.agents.llm_agent import Agent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events.event import Event
+from google.adk.events.event_actions import EventActions
 from google.adk.models.llm_request import LlmRequest
 from google.adk.utils.context_utils import Aclosing
 
@@ -36,6 +37,7 @@ from agents.tools.agents.coordinator_agents.agent import (
     parse_assessment,
     select_follow_up_agent,
 )
+from agents.tools.functions.incident import IncidentPlan, build_incident_plan
 from agents.tools.functions.semantic_route import semantic_knowledge_route
 
 load_environment()
@@ -157,6 +159,7 @@ _SITUATIONAL_RISK_TERMS = re.compile(
 _MAX_KNOWLEDGE_QUESTION_WORDS = 40
 _ROOT_USER_REQUEST_STATE_KEY = "root_user_request"
 _ROOT_QUESTION_STATE_KEY = "root_user_question"
+_INCIDENT_ACTIVE_STATE_KEY = "incident_active"
 
 _AGENT_STATUS = {
     "message_agent": "Analyzing message content\u2026",
@@ -675,6 +678,19 @@ def _fallback_root_response(target_name: str, specialist_report: str) -> str:
     return "I couldn't generate an answer this time. Please try again."
 
 
+def _with_incident_plan(
+    content: types.Content | None, plan: IncidentPlan
+) -> types.Content:
+    """Append the deterministic recovery plan to the answer the UI displays.
+
+    Both frontends show only the last root_agent text event, so the plan has to
+    travel inside the final answer rather than in an earlier event.
+    """
+    parts = list(content.parts or []) if content else []
+    parts.append(types.Part(text="\n\n" + plan.render_markdown()))
+    return types.Content(role=(content.role if content else None) or "model", parts=parts)
+
+
 def _restore_root_user_request(ctx: InvocationContext) -> None:
     original_request = ctx.session.state.get(_ROOT_USER_REQUEST_STATE_KEY)
     if not isinstance(original_request, str):
@@ -755,6 +771,23 @@ class RequestRouter(Agent):
                 content=types.Content(
                     role="model",
                     parts=[types.Part(text=safety_notice)],
+                ),
+                turn_complete=False,
+            )
+
+        # Victim-response playbook: typed text only (never attachment OCR, which
+        # is attacker-controlled). Deterministic; advice only, no side effects.
+        prior_incident = bool(ctx.session.state.get(_INCIDENT_ACTIVE_STATE_KEY))
+        incident_plan = build_incident_plan(user_request, prior_incident=prior_incident)
+        incident_assessment = None
+        if incident_plan:
+            ctx.session.state[_INCIDENT_ACTIVE_STATE_KEY] = True
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text=incident_plan.urgent_notice)],
                 ),
                 turn_complete=False,
             )
@@ -911,6 +944,7 @@ class RequestRouter(Agent):
         if requires_coordinator_followup(target_name):
             assessment = parse_assessment(initial_report)
             ctx.session.state["coordinator_assessment"] = assessment
+            incident_assessment = assessment
             _restore_root_user_request(ctx)
             coordinator = next(
                 agent for agent in self.sub_agents if agent.name == "coordinator_agent"
@@ -938,6 +972,21 @@ class RequestRouter(Agent):
             )
 
         ctx.session.state["root_specialist_report"] = final_report
+        if incident_plan:
+            # Message analysis may only make the plan more cautious.
+            incident_plan = (
+                build_incident_plan(
+                    user_request, incident_assessment, prior_incident=prior_incident
+                )
+                or incident_plan
+            )
+            yield Event(
+                author=self.name,
+                invocation_id=ctx.invocation_id,
+                custom_metadata={"kind": "incident_plan", "plan": incident_plan.to_dict()},
+                # Direct session.state writes are not persisted; a state_delta is.
+                actions=EventActions(state_delta={_INCIDENT_ACTIVE_STATE_KEY: True}),
+            )
         yield _status_event(self.name, ctx.invocation_id, "Generating a response\u2026")
         root_answer_returned = False
         try:
@@ -947,22 +996,25 @@ class RequestRouter(Agent):
                         getattr(part, "text", None) and part.text.strip()
                         for part in event.content.parts or []
                     )
+                    if root_answer_returned and incident_plan:
+                        event.content = _with_incident_plan(event.content, incident_plan)
                 yield event
         except Exception:
             logger.exception("Root response generation failed; using specialist fallback.")
 
         if not root_answer_returned:
+            fallback = types.Content(
+                role="model",
+                parts=[
+                    types.Part(text=_fallback_root_response(target_name, initial_report))
+                ],
+            )
+            if incident_plan:
+                fallback = _with_incident_plan(fallback, incident_plan)
             yield Event(
                 author=self.name,
                 invocation_id=ctx.invocation_id,
-                content=types.Content(
-                    role="model",
-                    parts=[
-                        types.Part(
-                            text=_fallback_root_response(target_name, initial_report)
-                        )
-                    ],
-                ),
+                content=fallback,
                 turn_complete=True,
             )
 

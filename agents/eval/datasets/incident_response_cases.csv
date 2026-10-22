@@ -1,0 +1,117 @@
+case_id,split,language,user_request,prior_incident,assessment_level,expected_incident,expected_category,expected_min_severity,expected_max_severity,required_steps,clarification_expected,review_status,review_notes
+inc-001,tuned,en,"A man claiming to be from LHDN said I owed tax, so I transferred RM3,500 to the account he gave me.",false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,confirmed transfer after impersonation
+inc-002,tuned,en,I paid RM800 as a registration fee for a part-time job and now the recruiter has blocked me.,false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,task/job scam fee
+inc-003,tuned,en,I sent USDT worth about 2000 dollars to an investment platform and I cannot withdraw anything.,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,crypto investment scam
+inc-004,tuned,en,"My savings got drained last night, there were unauthorised transfers I never made after I clicked a link.",false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,passive loss wording
+inc-005,tuned,ms,"Pihak polis telefon saya, dia suruh saya transfer RM5000 ke akaun selamat, saya dah transfer tadi.",false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"safe-account scam, Malay"
+inc-006,tuned,ms,"Saya dah bayar yuran proses pinjaman RM1200 tapi dia minta lagi, rasanya saya kena tipu.",false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"loan scam, Malay"
+inc-007,tuned,ms,Duit dalam akaun saya hilang RM2000 selepas saya tekan link parcel tu.,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"passive loss, Malay"
+inc-008,tuned,zh,对方说我涉及洗钱，我已经转账了5000令吉到他给的账户。,false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"police impersonation, Chinese"
+inc-009,tuned,zh,我被骗了，投资平台让我充值，我已经汇款了3000令吉。,false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"investment scam, Chinese"
+inc-010,tuned,zh,我的银行账户突然被扣了2000令吉，我根本没有授权。,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"unauthorised debit, Chinese"
+inc-011,tuned,mixed,"Aiyo I already transfer RM2000 to the scammer lah, what should I do now?",false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"Manglish, tense dropped"
+inc-012,tuned,en,Someone from my bank called and I read out the TAC that came to my phone.,false,none,true,financial_credentials,critical,critical,!call_bank|change_credentials|preserve_evidence,false,reviewed,TAC read out to caller
+inc-013,tuned,en,I typed my online banking password and OTP into the page from the SMS.,false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,fake banking page
+inc-014,tuned,en,I gave my card number and CVV to a caller who said my account was compromised.,false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,card details to caller
+inc-015,tuned,ms,Saya dah bagi nombor TAC kepada orang yang call mengaku pegawai bank.,false,none,true,financial_credentials,critical,critical,!call_bank|change_credentials|preserve_evidence,false,reviewed,"TAC given, Malay"
+inc-016,tuned,ms,Saya terkongsi kod OTP dengan penipu tadi.,false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,accidentally shared OTP
+inc-017,tuned,zh,骗子打电话来，我把验证码告诉他了。,false,none,true,financial_credentials,critical,critical,!call_bank|change_credentials|preserve_evidence,false,reviewed,verification code told
+inc-018,tuned,zh,我在假银行网站输入了网银密码和TAC。,false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,fake bank site
+inc-019,tuned,mixed,"I kasi dia my OTP already, now how?",false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,Manglish OTP
+inc-020,tuned,en,I entered my email password on a Shopee login page that came from a WhatsApp link and now it looks fake.,false,none,true,other_credentials,high,high,change_credentials|preserve_evidence,false,reviewed,fake login page
+inc-021,tuned,en,I filled in the form on the website with my IC number and bank login after the courier SMS.,false,none,true,data_entered_on_site,high,critical,change_credentials|preserve_evidence,false,reviewed,form with bank login
+inc-022,tuned,ms,Saya masukkan kata laluan Facebook di laman web palsu tu.,false,none,true,other_credentials,high,high,change_credentials|preserve_evidence,false,reviewed,"fake site, Malay"
+inc-023,tuned,ms,Saya tekan link tu and masuk password.,false,none,true,other_credentials,high,critical,change_credentials|preserve_evidence,false,reviewed,code-mixed example from brief
+inc-024,tuned,zh,我点开链接后在网页里输入了账号和密码。,false,none,true,other_credentials,high,critical,change_credentials|preserve_evidence,false,reviewed,"credentials on page, Chinese"
+inc-025,tuned,en,I clicked the link in that parcel SMS but I closed the page without typing anything.,false,none,true,link_interaction,moderate,moderate,contain_link,false,reviewed,click only
+inc-026,tuned,ms,Saya tertekan link dalam SMS tu tapi saya tak masukkan apa-apa maklumat.,false,none,true,link_interaction,moderate,moderate,contain_link,false,reviewed,"click only, Malay"
+inc-027,tuned,zh,我点了短信里的链接，但是什么都没填就关掉了。,false,none,true,link_interaction,moderate,moderate,contain_link,false,reviewed,"click only, Chinese"
+inc-028,tuned,en,The fake bank officer made me install AnyDesk and I gave him the 9-digit code.,false,none,true,remote_access,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,remote tool + code
+inc-029,tuned,en,I installed the app and now they can control my phone.,false,none,true,remote_access,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,example from brief; no scam keyword
+inc-030,tuned,ms,"Saya dah pasang TeamViewer sebab dia kata nak bantu, sekarang telefon saya macam ada orang kawal.",false,none,true,remote_access,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,"remote tool, Malay"
+inc-031,tuned,zh,对方让我下载远程控制软件，我已经安装了。,false,none,true,remote_access,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,"remote software, Chinese"
+inc-032,tuned,en,I downloaded an APK from the link the supposed LHDN officer sent and installed it.,false,none,true,app_installed,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,sideloaded apk
+inc-033,tuned,ms,"Saya dah muat turun aplikasi dari link yang pegawai tu bagi, lepas tu telefon jadi pelik.",false,none,true,app_installed,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,"app, Malay"
+inc-034,tuned,en,The scammer asked for my MyKad and I sent a photo of my IC and a selfie holding it.,false,none,true,identity_documents,high,high,identity_watch|preserve_evidence,false,reviewed,ID + selfie
+inc-035,tuned,ms,Saya dah hantar gambar IC dan selfie kepada orang yang kata saya menang cabutan bertuah.,false,none,true,identity_documents,high,high,identity_watch|preserve_evidence,false,reviewed,"ID, Malay"
+inc-036,tuned,zh,骗子要我的身份证，我把身份证照片和自拍发给他了。,false,none,true,identity_documents,high,high,identity_watch|preserve_evidence,false,reviewed,"ID, Chinese"
+inc-037,tuned,en,"After I lost RM10,000 a recovery agent contacted me and says he can get my money back if I pay a RM1,500 release fee.",false,none,true,recovery_scam,high,critical,reject_recovery_offer|preserve_evidence,false,reviewed,fee-for-recovery
+inc-038,tuned,en,Someone messaged me on Telegram offering to recover my scammed money for a fee.,false,none,true,recovery_scam,high,critical,reject_recovery_offer|preserve_evidence,false,reviewed,recovery offer
+inc-039,tuned,ms,"Ada orang tawarkan untuk dapatkan balik duit saya yang kena tipu, dia minta yuran dulu.",false,none,true,recovery_scam,high,critical,reject_recovery_offer|preserve_evidence,false,reviewed,"recovery, Malay"
+inc-040,tuned,zh,有人说可以帮我追回被骗的钱，但是要先付手续费。,false,none,true,recovery_scam,high,critical,reject_recovery_offer|preserve_evidence,false,reviewed,"recovery, Chinese"
+inc-041,tuned,en,I think I got scammed but I am not sure what to do.,false,none,true,unspecified_victim,precautionary,moderate,preserve_evidence,true,reviewed,hedged generic
+inc-042,tuned,en,I fell for a scam call yesterday.,false,none,true,unspecified_victim,precautionary,high,preserve_evidence,true,reviewed,generic victim
+inc-043,tuned,ms,Saya rasa saya kena scam tadi.,false,none,true,unspecified_victim,precautionary,high,preserve_evidence,true,reviewed,"generic, Malay"
+inc-044,tuned,zh,我好像被骗了，不知道该怎么办。,false,none,true,unspecified_victim,precautionary,high,preserve_evidence,true,reviewed,"generic, Chinese"
+inc-045,tuned,en,I might have shared my password with that fake support agent.,false,none,true,other_credentials,moderate,high,preserve_evidence,true,reviewed,hedged credential
+inc-046,tuned,en,"Not sure if I already paid the deposit through that link, I may have.",false,low,true,money_sent,high,critical,preserve_evidence,true,reviewed,"hedged money, low assessment"
+inc-047,tuned,en,"Not sure if I already paid the deposit through that link, I may have.",false,high,true,money_sent,critical,critical,preserve_evidence,true,reviewed,"same text, high assessment escalates"
+inc-048,tuned,ms,"Saya mungkin dah bagi OTP kepada dia tadi, tak pasti.",false,none,true,financial_credentials,high,critical,preserve_evidence,true,reviewed,"hedged OTP, Malay"
+inc-049,tuned,zh,我可能已经把验证码给了对方，不太确定。,false,none,true,financial_credentials,high,critical,preserve_evidence,true,reviewed,"hedged OTP, Chinese"
+inc-050,tuned,en,"Yes, I transferred RM2,000.",true,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,answer to bank question
+inc-051,tuned,en,Yes I also gave him my OTP.,true,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,follow-up credential
+inc-052,tuned,ms,"Ya, saya dah transfer RM2000 tadi.",true,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"follow-up, Malay"
+inc-053,tuned,zh,对，我转了2000令吉。,true,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"follow-up, Chinese"
+inc-054,tuned,en,"No, I haven't transferred any money.",true,none,false,none,,,,false,reviewed,negated follow-up adds nothing
+inc-055,tuned,en,"I received an SMS saying I must pay a parcel fee, is it a scam?",false,none,false,none,,,,false,reviewed,question only
+inc-056,tuned,en,"Someone asked me to transfer money to a safe account, should I do it?",false,none,false,none,,,,false,reviewed,hypothetical
+inc-057,tuned,en,I did not click the link and I did not give them anything.,false,none,false,none,,,,false,reviewed,explicit negation
+inc-058,tuned,en,I sent money to my mum for groceries.,false,none,false,none,,,,false,reviewed,ordinary payment
+inc-059,tuned,en,I entered my OTP to log in to my banking app.,false,none,false,none,,,,false,reviewed,legitimate OTP use
+inc-060,tuned,en,I paid my electricity bill online yesterday.,false,none,false,none,,,,false,reviewed,ordinary payment
+inc-061,tuned,en,How do I protect myself from phishing emails?,false,none,false,none,,,,false,reviewed,education
+inc-062,tuned,en,"He wrote ""I transferred the money, please check"" in the message, is this a scam?",false,none,false,none,,,,false,reviewed,quoted third-party text
+inc-063,tuned,en,Please explain what a recovery scam is.,false,none,false,none,,,,false,reviewed,education
+inc-064,tuned,ms,"Saya belum transfer duit lagi, dia suruh saya bayar dulu.",false,none,false,none,,,,false,reviewed,"negation, Malay"
+inc-065,tuned,ms,Betul ke ini penipuan? Dia minta saya bagi kod OTP.,false,none,false,none,,,,false,reviewed,"asked only, Malay"
+inc-066,tuned,zh,我还没有转账，对方让我先付款，这是诈骗吗？,false,none,false,none,,,,false,reviewed,"negation, Chinese"
+inc-067,tuned,zh,我刚才用验证码登录了我的银行App。,false,none,false,none,,,,false,reviewed,"legitimate OTP, Chinese"
+inc-068,tuned,mixed,"Wah got people WhatsApp me say I win prize, I never reply lah.",false,none,false,none,,,,false,reviewed,Manglish negation
+inc-069,tuned,en,Yesterday I wired 4k to a broker on Telegram and today the website is gone.,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,amount as 4k; no scam keyword
+inc-070,tuned,en,They called pretending to be from Maybank and I told them the code from the SMS.,false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,'the code' instead of OTP/TAC
+inc-071,tuned,en,A stranger on Facebook convinced me to buy gift cards and I read the numbers out to him.,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,gift card codes read out
+inc-072,tuned,en,Scammer got my Gmail login and now he is emailing my contacts.,false,none,true,other_credentials,high,high,change_credentials|preserve_evidence,false,reviewed,'login' without 'details'
+inc-073,tuned,en,She sent me a link to a trading app and I deposited all my retirement savings there.,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,deposit into fake trading app
+inc-074,tuned,ms,"Dah bagi OTP kat scammer tu tadi, macam mana ni?",false,none,true,financial_credentials,critical,critical,call_bank|change_credentials|preserve_evidence,false,reviewed,informal Malay
+inc-075,tuned,ms,"Saya buat pembayaran RM300 melalui link tu, rupanya scam.",false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,'buat pembayaran' without dah
+inc-076,tuned,ms,Wang saya dah kena keluar RM5000 tanpa pengetahuan saya.,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"passive loss, Malay"
+inc-077,tuned,zh,我昨天扫了二维码付了款，结果发现是骗局。,false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"QR payment, Chinese"
+inc-078,tuned,mixed,"Bro I scan the QR then key in my PIN, now money all gone lah.",false,none,true,money_sent,critical,critical,call_bank|call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"Manglish, tense dropped"
+inc-079,tuned,ms,Rasanya tadi saya ada beri nombor kad saya kepada dia.,false,none,true,financial_credentials,high,critical,preserve_evidence,true,reviewed,"hedged card number, Malay"
+inc-080,tuned,en,A lawyer in Singapore emailed saying he can unfreeze my lost investment funds after I pay a legal fee.,false,none,true,recovery_scam,high,critical,reject_recovery_offer|preserve_evidence,false,reviewed,"recovery offer, different vocabulary"
+inc-081,tuned,en,The bank officer sent an APK and I sideloaded it on my Android.,false,none,true,app_installed,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,object dropped after verb
+inc-082,tuned,en,I realised too late that I was dealing with a scammer.,false,none,true,unspecified_victim,precautionary,high,preserve_evidence,true,reviewed,implicit victim statement
+inc-083,tuned,ms,Saya sudah kongsi gambar IC saya dengan orang yang tidak dikenali.,false,none,true,identity_documents,high,high,identity_watch|preserve_evidence,false,reviewed,"ID shared, no scam keyword"
+inc-084,tuned,en,My friend told me he got scammed and transferred RM5000. How can I help him?,false,none,false,none,,,,false,reviewed,"third party victim, not the user"
+inc-085,tuned,en,The news said a woman lost RM1 million to a scam last month.,false,none,false,none,,,,false,reviewed,news report
+inc-086,tuned,en,I installed AnyDesk to help my parents with their laptop.,false,none,false,none,,,,false,reviewed,legitimate remote tool
+inc-087,tuned,en,I clicked the link to unsubscribe from the newsletter.,false,none,false,none,,,,false,reviewed,benign link click
+inc-088,tuned,en,I am writing a report on how victims transferred money to fake police officers.,false,none,false,none,,,,false,reviewed,research framing
+inc-089,tuned,en,"The bank sent an SMS to confirm a transfer of RM200 that I made today, and I confirmed it.",false,none,false,none,,,,false,reviewed,legitimate bank confirmation
+inc-090,tuned,ms,Semalam saya dah bayar yuran sekolah anak saya RM300.,false,none,false,none,,,,false,reviewed,"school fee, not a scam"
+inc-091,tuned,en,Please tell me if it is safe to give my OTP to a delivery rider.,false,none,false,none,,,,false,reviewed,question only
+inc-092,tuned,ms,"Jangan bagi OTP kepada sesiapa, itu penipuan.",false,none,false,none,,,,false,reviewed,"advice, imperative"
+inc-093,challenge,en,"Caller said he was from Bank Negara and I wired RM12,000 to a ""safe account"" he named.",false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"frozen-rules challenge case, run once"
+inc-094,challenge,en,I sent my MyKad front and back photos to the so-called loan officer on WhatsApp.,false,none,true,identity_documents,high,high,identity_watch|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-095,challenge,en,"Clicked the parcel tracking link in the SMS, nothing else happened as far as I can tell.",false,none,true,link_interaction,moderate,moderate,contain_link,false,reviewed,"frozen-rules challenge case, run once"
+inc-096,challenge,en,The fake courier site asked for my card number and CVV and I typed them in.,false,none,true,financial_credentials,critical,critical,!call_bank|change_credentials|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-097,challenge,en,"He asked me to install AnyDesk and I did, then he moved things around on my screen.",false,none,true,remote_access,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-098,challenge,en,"Someone emailed offering to recover my lost crypto if I pay a RM1,500 release fee.",false,none,true,recovery_scam,high,critical,reject_recovery_offer|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-099,challenge,en,I gave the caller the 6-digit code that came by SMS.,false,none,true,other_credentials,high,high,change_credentials|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-100,challenge,en,Please explain what a phishing email looks like.,false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-101,challenge,en,"My friend said he transferred RM5,000 to a scammer yesterday, what should he do?",false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-102,challenge,en,"I always check before I click, and I never share my OTP with anyone.",false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-103,challenge,en,I have been scammed and do not know what to do.,false,none,true,unspecified_victim,precautionary,moderate,preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-104,challenge,en,"My bank app sent me a normal OTP when I logged in, and I used it myself.",false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-105,challenge,ms,Saya sudah transfer RM3000 kepada akaun yang polis palsu bagi tadi.,false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"frozen-rules challenge case, run once"
+inc-106,challenge,ms,Saya klik pautan dan masukkan kata laluan perbankan online saya.,false,none,true,financial_credentials,critical,critical,!call_bank|change_credentials|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-107,challenge,ms,"Saya belum bayar apa-apa, cuma nak tanya ini scam ke tak.",false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-108,challenge,ms,Dia suruh saya muat turun aplikasi dan saya dah pasang di telefon.,false,none,true,app_installed,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-109,challenge,zh,我已经把两千块转给了自称客服的人。,false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"frozen-rules challenge case, run once"
+inc-110,challenge,zh,我在假网站上输入了银行密码。,false,none,true,financial_credentials,critical,critical,!call_bank|change_credentials|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-111,challenge,zh,我没有转账，只是想问这是不是诈骗短信。,false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-112,challenge,zh,对方让我下载远程控制软件，我已经安装了。,false,none,true,remote_access,high,critical,disconnect_device|clean_device|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-113,challenge,mixed,"Aiyo I bank in RM800 already to that Shopee seller, now he block me lah.",false,none,true,money_sent,critical,critical,!call_bank|!call_nsrc|preserve_evidence|no_more_payments|police_report,false,reviewed,"frozen-rules challenge case, run once"
+inc-114,challenge,mixed,"Wah the link I click then key in my TAC liao, how ah?",false,none,true,other_credentials,high,high,change_credentials|preserve_evidence,false,reviewed,"frozen-rules challenge case, run once"
+inc-115,challenge,mixed,"Just receive the SMS only lah, I never click anything.",false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
+inc-116,challenge,en,"The lady at the bank told me to be careful of scams like this, I have not paid anything.",false,none,false,none,,,,false,reviewed,"frozen-rules challenge case, run once"
