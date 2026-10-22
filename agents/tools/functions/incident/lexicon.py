@@ -65,6 +65,7 @@ _SCAM_CONTEXT = _c(
     r"job\s+offer|part[- ]time\s+job|task|romance|lottery|prize|lucky\s+draw|refund|compensation|"
     r"verify\s+your|agent|officer|sms|whatsapp|telegram|wechat|text\s+message|gift\s?cards?|"
     r"control\s+my\s+(?:phone|computer|laptop|device)|"
+    r"(?:account|number|link|details?)\s+(?:that\s+)?(?:they|he|she)\s+(?:gave|sent|provided|told)|"
     # Bahasa Malaysia
     r"penipu\w*|penipuan|tipu\w*|ditipu|kena\s+(?:tipu|scam)|pegawai|polis|panggilan|"
     r"mengaku|akaun\s+selamat|pelaburan|cabutan\s+bertuah|hadiah|pinjaman|pos\s*laju|"
