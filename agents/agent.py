@@ -15,6 +15,7 @@ from google.adk.models.llm_request import LlmRequest
 from google.adk.utils.context_utils import Aclosing
 
 from agents.config import agent_model, load_environment
+from agents.integrity import verify_agent_definitions
 from agents.scope import OUT_OF_SCOPE_REPLY, SCOPE_RULES
 from agents.tools.agents.message_agents.attachments import (
     has_attachment,
@@ -1093,3 +1094,4 @@ root_agent = RequestRouter(
     ],
     generate_content_config={"temperature": 0},
 )
+verify_agent_definitions(root_agent)

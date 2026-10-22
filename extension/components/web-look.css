@@ -1175,6 +1175,29 @@ body {
 .rail-confirm-row > span {
   flex-basis: 100%;
 }
+/* Two equal rounded buttons: a soft red Delete and a neutral Keep. */
+.rail-confirm-row > button {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.rail-confirm-row .rail-danger {
+  border: 1px solid color-mix(in srgb, var(--risk-critical) 60%, transparent);
+  background: color-mix(in srgb, var(--risk-critical) 14%, transparent);
+  color: var(--risk-critical);
+}
+.rail-confirm-row .rail-danger:hover {
+  background: color-mix(in srgb, var(--risk-critical) 26%, transparent);
+}
+.rail-confirm-row .ghost {
+  border: 1px solid var(--line-strong);
+  color: var(--chrome-ink);
+}
 
 
 /* ───────── Sidebar open / close motion ───────── */

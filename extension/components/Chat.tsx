@@ -241,6 +241,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const loadingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  // Set when "New check" stops a running check, so no visible stopped message is added.
+  const discardStopRef = useRef(false);
   const sendTextRef = useRef(sendText);
   sendTextRef.current = sendText;
 
@@ -250,9 +252,14 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       const saved = result[REMINDER_TIP_KEY] as ReminderTip | undefined;
       if (saved?.message) setReminderTip(saved);
     });
-    const onTipChange = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+    const onTipChange = (
+      changes: Record<string, { newValue?: unknown }>,
+      area: string,
+    ) => {
       if (area !== "local" || !(REMINDER_TIP_KEY in changes)) return;
-      const next = changes[REMINDER_TIP_KEY]?.newValue as ReminderTip | undefined;
+      const next = changes[REMINDER_TIP_KEY]?.newValue as
+        | ReminderTip
+        | undefined;
       setReminderTip(next?.message ? next : null);
     };
     browser.storage.onChanged.addListener(onTipChange);
@@ -381,13 +388,15 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       setActiveAgents([]);
     } catch (error) {
       if (isAbortError(error)) {
-        const stoppedMessage: Message = {
-          id: assistantId,
-          role: "assistant",
-          text: "Stopped. No result was returned.",
-          agents: participatingAgents,
-        };
-        setMessages((current) => [...current, stoppedMessage]);
+        if (!discardStopRef.current) {
+          const stoppedMessage: Message = {
+            id: assistantId,
+            role: "assistant",
+            text: "Stopped. No result was returned.",
+            agents: participatingAgents,
+          };
+          setMessages((current) => [...current, stoppedMessage]);
+        }
       } else {
         const errorText =
           error instanceof Error ? error.message : "Something went wrong.";
@@ -403,6 +412,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       setActiveAgents([]);
     } finally {
       abortRef.current = null;
+      discardStopRef.current = false;
       loadingRef.current = false;
       setLoading(false);
       setStatus("");
@@ -485,6 +495,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
 
   function newCheck() {
     // A check that is still running belongs to the old session, so stop it first.
+    if (abortRef.current) discardStopRef.current = true;
     abortRef.current?.abort();
     // Start a fresh screen but keep the saved log, so Recent checks is not lost.
     const lastId = messages.at(-1)?.id ?? null;
@@ -1128,7 +1139,11 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
         <div className="reminder-toast" role="status" aria-live="polite">
           <span className="reminder-toast-title">Awareness tip</span>
           <p className="reminder-toast-text">{reminderTip.message}</p>
-          <button type="button" className="ghost reminder-toast-close" onClick={dismissReminderTip}>
+          <button
+            type="button"
+            className="ghost reminder-toast-close"
+            onClick={dismissReminderTip}
+          >
             Got it
           </button>
         </div>
