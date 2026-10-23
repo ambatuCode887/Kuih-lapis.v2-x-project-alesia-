@@ -878,6 +878,22 @@ body {
   border-color: var(--pine);
   background: radial-gradient(circle, var(--pine) 45%, transparent 50%);
 }
+.settings-save {
+  min-height: 40px;
+  margin-top: 4px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--pine);
+  color: var(--card);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.settings-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 
 
 /* ───────── Settings button: bottom left ───────── */
@@ -1805,4 +1821,30 @@ body {
   .rail-actions {
     opacity: 0.85;
   }
+}
+
+
+/* ───────── Awareness tip: an X in the corner to close it ───────── */
+.app > .reminder-toast {
+  padding-right: 48px;
+}
+.reminder-toast-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+.reminder-toast-x:hover {
+  background: color-mix(in srgb, var(--pine) 18%, transparent);
+  color: var(--ink);
 }

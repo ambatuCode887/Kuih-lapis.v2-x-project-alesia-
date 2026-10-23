@@ -174,9 +174,10 @@ def sync_review_log(path: Path | None, *, dry_run: bool = False, prune: bool = F
         summary["upserted"] = len(points)
 
     if prune and (not_approved or stale_ids):
-        from qdrant_client.models import PointIdsList
+        from qdrant_client.models import ExtendedPointId, PointIdsList
 
-        delete_ids = [row.point_id for row in not_approved] + stale_ids
+        delete_ids: list[ExtendedPointId] = [row.point_id for row in not_approved]
+        delete_ids.extend(stale_ids)
         qdrant.delete(
             collection_name=cfg.collection,
             points_selector=PointIdsList(points=delete_ids),

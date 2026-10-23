@@ -71,7 +71,7 @@ def embed_texts(texts: Sequence[str]) -> list[list[float]]:
     from google import genai
 
     client = genai.Client(api_key=env("GOOGLE_API_KEY"))
-    model = env("EMBEDDING_MODEL", "gemini-embedding-001")
+    model = env("EMBEDDING_MODEL", "gemini-embedding-001") or "gemini-embedding-001"
     try:
         embeddings = []
         for start in range(0, len(texts), GOOGLE_EMBEDDING_BATCH_SIZE):

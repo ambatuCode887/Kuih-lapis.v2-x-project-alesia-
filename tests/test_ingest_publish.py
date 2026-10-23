@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
+from qdrant_client.models import PointIdsList
 
 from agents.tools.functions.ingest import documents
 
@@ -15,13 +17,14 @@ class _Point:
 class _FakeQdrant:
     def __init__(self, ids: list[str]) -> None:
         self.ids = ids
-        self.deleted: list[str] | None = None
+        self.deleted: list[Any] | None = None
 
     def scroll(self, **_):
         return [_Point(point_id) for point_id in self.ids], None
 
     def delete(self, points_selector, **_):
-        self.deleted = points_selector
+        # Production passes a PointIdsList; record the ids it wraps.
+        self.deleted = points_selector.points if isinstance(points_selector, PointIdsList) else points_selector
 
 
 def _use_fake_qdrant(monkeypatch, fake: _FakeQdrant) -> None:

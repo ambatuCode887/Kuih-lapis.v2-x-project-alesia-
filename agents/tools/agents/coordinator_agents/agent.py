@@ -111,11 +111,7 @@ def _assessment_from_context(ctx: InvocationContext) -> dict[str, Any] | None:
 			or not event.content
 		):
 			continue
-		text = "\n".join(
-			part.text
-			for part in event.content.parts or []
-			if getattr(part, "text", None)
-		)
+		text = "\n".join(part.text for part in event.content.parts or [] if part.text)
 		assessment = parse_assessment(text)
 		if assessment is not None:
 			return assessment

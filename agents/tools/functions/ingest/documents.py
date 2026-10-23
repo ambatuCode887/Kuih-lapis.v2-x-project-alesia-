@@ -233,15 +233,15 @@ def ingest_texts(
 
 
 def _delete_points_outside(source: str, file_path: str | None, keep_ids: set[str]) -> int:
-    from qdrant_client.models import FieldCondition, Filter, MatchValue
+    from qdrant_client.models import Condition, ExtendedPointId, FieldCondition, Filter, MatchValue, PointIdsList
 
     qdrant = client()
     cfg = settings()
-    must = [FieldCondition(key="source", match=MatchValue(value=source))]
+    must: list[Condition] = [FieldCondition(key="source", match=MatchValue(value=source))]
     if file_path is not None:
         must.append(FieldCondition(key="file_path", match=MatchValue(value=file_path)))
 
-    stale_ids: list[str] = []
+    stale_ids: list[ExtendedPointId] = []
     offset = None
     while True:
         points, offset = qdrant.scroll(
@@ -257,7 +257,7 @@ def _delete_points_outside(source: str, file_path: str | None, keep_ids: set[str
             break
 
     if stale_ids:
-        qdrant.delete(collection_name=cfg.collection, points_selector=stale_ids, wait=True)
+        qdrant.delete(collection_name=cfg.collection, points_selector=PointIdsList(points=stale_ids), wait=True)
     return len(stale_ids)
 
 
