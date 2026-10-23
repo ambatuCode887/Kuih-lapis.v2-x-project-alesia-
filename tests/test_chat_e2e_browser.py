@@ -260,18 +260,36 @@ def test_related_question_chip_sends_follow_up(chat_panel):
     assert chip_text in follow_up.thread
 
 
-def test_question_missing_from_knowledge_base_is_answered_not_refused(chat_panel):
+def _review_sheet_rows(question: str) -> list[dict[str, str]]:
+    from agents.tools.functions import review_sheet
+
+    _, rows = review_sheet.read_rows()
+    return [row for row in rows if row.get("question") == question]
+
+
+def test_question_missing_from_knowledge_base_is_answered_and_logged(chat_panel, monkeypatch):
     from agents.scope import OUT_OF_SCOPE_REPLY
+    from agents.tools.functions import review_sheet
+
+    # conftest blanks REVIEW_SHEET_ID; restore it so the test reads the sheet the backend writes.
+    monkeypatch.delenv("REVIEW_SHEET_ID")
+    if not review_sheet.is_configured():
+        pytest.skip("review sheet is not configured in .env")
 
     question = (
         "How can I verify an officer impersonator who spoofs a police caller ID "
         "and sends me a fake warrant portal link?"
     )
+    before = len(_review_sheet_rows(question))
     answer = _ask(chat_panel, "miss", question)
     _assert_answer(answer, "miss")
-    # The coordinator picks the route, so either answering agent is acceptable.
-    assert "retrieval_agent" in answer.agents or "verification_agent" in answer.agents, answer.agents
+    # Only the retrieval agent logs unanswered questions.
+    assert "retrieval_agent" in answer.agents
     assert OUT_OF_SCOPE_REPLY not in answer.reply
+
+    new_rows = _review_sheet_rows(question)[before:]
+    assert new_rows, "question was not written to the review sheet"
+    assert any(row.get("model_answer", "").strip() for row in new_rows)
 
 
 def test_qr_code_attachment_is_checked(chat_panel, tmp_path):
