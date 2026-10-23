@@ -16,6 +16,8 @@ from typing import Any, Callable
 import httpx
 import pytest
 
+pytestmark = pytest.mark.browser
+
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION_DIR = ROOT / "extension" / ".output" / "chrome-mv3"
 BACKEND_URL = "http://127.0.0.1:8000"
@@ -245,10 +247,11 @@ def test_download_is_paused_with_unverified_review_and_readable_filename(guard_b
 
     g.panel.reload()
     body = _wait_until(
-        lambda: "could not be verified" in g.panel.inner_text("body"), timeout=10
+        lambda: "We could not check this file" in g.panel.inner_text("body"),
+        timeout=10,
     )
     assert body
-    _click_in_panel(g, "Cancel download")
+    _click_in_panel(g, "Stop this download")
     _wait_until(lambda: _item(g.state(), download_id)["state"] == "interrupted", 10)
 
 
@@ -257,7 +260,7 @@ def test_cancel_in_progress_download_writes_no_file(guard_browser):
     download_id = _start_download(g)
     _wait_until(lambda: _review(g, download_id), timeout=10)
 
-    _click_in_panel(g, "Cancel download")
+    _click_in_panel(g, "Stop this download")
 
     item = _wait_until(
         lambda: _item(g.state(), download_id)
@@ -336,6 +339,7 @@ def _settled(g: GuardBrowser, download_id: int) -> dict[str, Any] | None:
     return None
 
 
+@pytest.mark.backend
 def test_clean_domain_download_resumes_without_warning(live_guard_browser):
     g = live_guard_browser
     download_id = g.service_worker.evaluate(
@@ -439,5 +443,5 @@ def test_flagged_domain_shows_malicious_review_even_if_llm_sees_no_threat(
     assert "3 engine" in review["details"]
     assert _item(g.state(), download_id)["paused"]
 
-    _click_in_panel(g, "Cancel download")
+    _click_in_panel(g, "Stop this download")
     _wait_until(lambda: _item(g.state(), download_id)["state"] == "interrupted", 10)

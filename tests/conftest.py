@@ -3,7 +3,9 @@ import os
 import pytest
 
 
-os.environ.setdefault("VTAI_TOKEN", "test-token")
+def pytest_configure(config):
+    config.addinivalue_line("markers", "browser: drives the built Chrome extension with Playwright")
+    config.addinivalue_line("markers", "backend: needs the backend running on port 8000")
 
 
 @pytest.fixture(autouse=True)

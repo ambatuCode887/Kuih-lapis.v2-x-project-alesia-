@@ -19,6 +19,8 @@ from typing import Any
 import httpx
 import pytest
 
+pytestmark = [pytest.mark.browser, pytest.mark.backend]
+
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION_DIR = ROOT / "extension" / ".output" / "chrome-mv3"
 BACKEND_URL = "http://127.0.0.1:8000"
@@ -29,9 +31,13 @@ BUDGETS = {
     "injection": 10,
     "panic": 180,
     "message": 180,
-    "knowledge": 60,
+    "knowledge": 120,
+    "retrieval": 150,
+    "followup": 150,
+    "miss": 300,
     "url": 120,
     "screenshot": 225,
+    "qr": 225,
 }
 
 
@@ -67,6 +73,16 @@ def _make_screenshot(path: Path) -> None:
         (20, 80), "Your account is locked. Send your OTP code now.", fill="black"
     )
     image.save(path)
+
+
+def _make_qr(path: Path, text: str) -> None:
+    import numpy as np
+    import zxingcpp
+    from PIL import Image
+
+    barcode = zxingcpp.create_barcode(text, zxingcpp.BarcodeFormat.QRCode)
+    code = zxingcpp.write_barcode_to_image(barcode, scale=8)
+    Image.fromarray(np.asarray(code)).convert("RGB").save(path)
 
 
 @contextmanager
@@ -117,17 +133,28 @@ def chat_panel():
 
 
 def _ask(panel: Any, route: str, text: str, image: Path | None = None) -> Answer:
-    from playwright.sync_api import TimeoutError as PlaywrightTimeout
-
     before = panel.locator(".turn").count()
     if image is not None:
         panel.set_input_files('input[type="file"]', str(image))
         panel.locator(".attachments").wait_for()
     panel.locator('textarea[aria-label="Message"]').fill(text)
 
-    limit_ms = BUDGETS[route] * 2 * 1000
     started = time.monotonic()
     panel.get_by_role("button", name="Check", exact=True).click()
+    return _wait_for_answer(panel, route, before, started)
+
+
+def _click_related(panel: Any, route: str, question: str) -> Answer:
+    before = panel.locator(".turn").count()
+    started = time.monotonic()
+    panel.locator(".turn").last.locator(".related-question", has_text=question).first.click()
+    return _wait_for_answer(panel, route, before, started)
+
+
+def _wait_for_answer(panel: Any, route: str, before: int, started: float) -> Answer:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+    limit_ms = BUDGETS[route] * 2 * 1000
     try:
         # The user turn sits at index `before`; the final answer is appended after it.
         panel.locator(".turn").nth(before + 1).wait_for(state="attached", timeout=limit_ms)
@@ -208,3 +235,68 @@ def test_screenshot_is_analyzed_as_attachment(chat_panel, tmp_path):
     answer = _ask(chat_panel, "screenshot", "Is this message a scam?", image=screenshot)
     _assert_answer(answer, "screenshot")
     assert "message_agent" in answer.agents
+
+
+def test_knowledge_base_answer_uses_retrieval_evidence(chat_panel):
+    answer = _ask(chat_panel, "retrieval", "How can credential stuffing be prevented?")
+    _assert_answer(answer, "retrieval")
+    assert "retrieval_agent" in answer.agents
+    reply = answer.reply.lower()
+    assert any(term in reply for term in ("multi-factor", "mfa", "rate limit", "breached")), reply
+
+
+def test_related_question_chip_sends_follow_up(chat_panel):
+    from playwright.sync_api import expect
+
+    answer = _ask(chat_panel, "knowledge", "How do I prevent phishing attacks?")
+    _assert_answer(answer, "knowledge")
+    chips = chat_panel.locator(".turn").last.locator(".related-question")
+    expect(chips.first).to_be_visible(timeout=10000)
+    chip_text = (chips.first.text_content() or "").strip()
+    assert chip_text, "related question chip is empty"
+
+    follow_up = _click_related(chat_panel, "followup", chip_text)
+    _assert_answer(follow_up, "followup")
+    assert chip_text in follow_up.thread
+
+
+def _review_sheet_rows(question: str) -> list[dict[str, str]]:
+    from agents.tools.functions import review_sheet
+
+    _, rows = review_sheet.read_rows()
+    return [row for row in rows if row.get("question") == question]
+
+
+def test_question_missing_from_knowledge_base_is_answered_and_logged(chat_panel, monkeypatch):
+    from agents.scope import OUT_OF_SCOPE_REPLY
+    from agents.tools.functions import review_sheet
+
+    # conftest blanks REVIEW_SHEET_ID; restore it so the test reads the sheet the backend writes.
+    monkeypatch.delenv("REVIEW_SHEET_ID")
+    if not review_sheet.is_configured():
+        pytest.skip("review sheet is not configured in .env")
+
+    question = (
+        "How can I verify an officer impersonator who spoofs a police caller ID "
+        "and sends me a fake warrant portal link?"
+    )
+    before = len(_review_sheet_rows(question))
+    answer = _ask(chat_panel, "miss", question)
+    _assert_answer(answer, "miss")
+    # Only the retrieval agent logs unanswered questions.
+    assert "retrieval_agent" in answer.agents
+    assert OUT_OF_SCOPE_REPLY not in answer.reply
+
+    new_rows = _review_sheet_rows(question)[before:]
+    assert new_rows, "question was not written to the review sheet"
+    assert any(row.get("model_answer", "").strip() for row in new_rows)
+
+
+def test_qr_code_attachment_is_checked(chat_panel, tmp_path):
+    pytest.importorskip("zxingcpp")
+    qr = tmp_path / "qr.png"
+    _make_qr(qr, "https://login.example.test/reset")
+    answer = _ask(chat_panel, "qr", "Is the link in this QR code safe to open?", image=qr)
+    _assert_answer(answer, "qr")
+    assert "message_agent" in answer.agents
+    assert chat_panel.locator(".turn").last.locator(".verdict").count() == 1

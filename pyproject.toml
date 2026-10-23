@@ -1,0 +1,15 @@
+[tool.ruff]
+target-version = "py313"
+extend-exclude = [".venv", "extension", "web", "training", "data"]
+
+[tool.ruff.lint]
+# Pyflakes plus pycodestyle error checks. Kept small so the baseline stays meaningful.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.pyright]
+include = ["agents", "tests"]
+exclude = ["**/__pycache__"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"
+typeCheckingMode = "standard"

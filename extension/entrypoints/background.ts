@@ -1,6 +1,7 @@
 import { askAgent } from '@/lib/api';
 import { isCleanDomain } from '@/lib/domainStats';
 import {
+  DEFAULT_REMINDER,
   REMINDER_ALARM,
   REMINDER_KEY,
   REMINDER_NOTIFICATION,
@@ -17,6 +18,7 @@ const MENU_LINK = 'check-link';
 // Read and cleared by the chat UI (see components/Chat.tsx).
 const PENDING_KEY = 'pending-check';
 const DOWNLOAD_REVIEW_PREFIX = 'download-review-';
+const DOWNLOAD_NOTIFICATION_PREFIX = 'download-review-alert-';
 
 interface DownloadReview {
   downloadId: number;
@@ -34,6 +36,16 @@ interface DownloadReviewAction {
 
 function reviewKey(downloadId: number): string {
   return `${DOWNLOAD_REVIEW_PREFIX}${downloadId}`;
+}
+
+function reviewNotificationId(downloadId: number): string {
+  return `${DOWNLOAD_NOTIFICATION_PREFIX}${downloadId}`;
+}
+
+function downloadIdFromNotification(id: string): number | null {
+  if (!id.startsWith(DOWNLOAD_NOTIFICATION_PREFIX)) return null;
+  const value = Number(id.slice(DOWNLOAD_NOTIFICATION_PREFIX.length));
+  return Number.isInteger(value) ? value : null;
 }
 
 function displayFilename(path: string): string {
@@ -60,6 +72,17 @@ async function openDownloadReview(review: DownloadReview): Promise<void> {
     await browser.action.setBadgeBackgroundColor({ color: '#ee5f5b' });
     await browser.action.setBadgeText({ text: '!' });
   }
+
+  await browser.notifications
+    .create(reviewNotificationId(review.downloadId), {
+      type: 'basic',
+      iconUrl: browser.runtime.getURL('/icon/128.png'),
+      title: review.status === 'malicious' ? 'Malicious download stopped' : 'Unverified download paused',
+      message: `${filename} from ${review.domain || 'an unknown source'}. ${review.details}`,
+      requireInteraction: true,
+      buttons: [{ title: 'Stop this download' }, { title: 'Download anyway' }],
+    })
+    .catch((error) => console.warn('Could not show the download notification.', error));
 }
 
 async function inspectDownload(
@@ -178,6 +201,7 @@ async function handleDownloadReviewAction(
       await browser.downloads.cancel(message.downloadId);
     }
     await browser.storage.local.remove(key);
+    await browser.notifications.clear(reviewNotificationId(message.downloadId));
     return { ok: true };
   } catch (error) {
     return {
@@ -213,7 +237,7 @@ async function closeSidePanel(): Promise<void> {
 async function readReminderInterval(): Promise<ReminderInterval> {
   const stored = await browser.storage.local.get(REMINDER_KEY);
   const value = stored[REMINDER_KEY];
-  return isReminderInterval(value) ? value : 'off';
+  return isReminderInterval(value) ? value : DEFAULT_REMINDER;
 }
 
 /**
@@ -301,6 +325,17 @@ export default defineBackground(() => {
 
   browser.notifications.onClicked.addListener((id) => {
     if (id === REMINDER_NOTIFICATION) void browser.notifications.clear(id);
+  });
+
+  browser.notifications.onButtonClicked.addListener((id, buttonIndex) => {
+    const downloadId = downloadIdFromNotification(id);
+    if (downloadId === null) return;
+    // Button 0 is "Stop this download"; button 1 is "Download anyway".
+    void handleDownloadReviewAction({
+      type: 'download-review-action',
+      downloadId,
+      action: buttonIndex === 0 ? 'cancel' : 'proceed',
+    });
   });
 
   browser.runtime.onInstalled.addListener(() => {

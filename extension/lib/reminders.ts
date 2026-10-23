@@ -1,6 +1,6 @@
 export type ReminderInterval = 'off' | '12h' | '24h';
 
-/** The user's choice from Settings. Off unless they turn it on. */
+/** The user's choice from Settings. Falls back to DEFAULT_REMINDER until one is saved. */
 export const REMINDER_KEY = 'reminder-interval';
 /** The latest reminder, kept until the user dismisses it in the side panel. */
 export const REMINDER_TIP_KEY = 'reminder-tip';
@@ -36,6 +36,8 @@ export interface ReminderTip {
   message: string;
   at: number;
 }
+
+export const DEFAULT_REMINDER: ReminderInterval = '12h';
 
 export function isReminderInterval(value: unknown): value is ReminderInterval {
   return value === 'off' || value === '12h' || value === '24h';

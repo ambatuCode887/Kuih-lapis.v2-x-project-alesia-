@@ -91,6 +91,7 @@ def evaluate_ragas(
 	"""Score generated answers against retrieved context and reference answers."""
 	from datasets import Dataset
 	from ragas import evaluate
+	from ragas.dataset_schema import EvaluationResult
 	from ragas.metrics import (
 		AnswerCorrectness,
 		AnswerRelevancy,
@@ -203,6 +204,8 @@ def evaluate_ragas(
 		raise_exceptions=True,
 		show_progress=True,
 	)
+	if not isinstance(result, EvaluationResult):
+		raise TypeError("ragas.evaluate returned an Executor instead of results.")
 	scores = result.to_pandas()
 	metric_names = [metric.name for metric in metrics]
 	averages = {
@@ -210,7 +213,10 @@ def evaluate_ragas(
 		for name in metric_names
 		if name in scores and not scores[name].dropna().empty
 	}
-	case_results = json.loads(scores.to_json(orient="records", force_ascii=False))
+	scores_json = scores.to_json(orient="records", force_ascii=False)
+	if scores_json is None:
+		raise ValueError("pandas returned no JSON for the RAGAS scores.")
+	case_results = json.loads(scores_json)
 	for case_result, metadata, sample in zip(case_results, case_metadata, samples):
 		case_result.update(metadata)
 		case_result.update(
