@@ -48,8 +48,8 @@ before the check begins. Chrome's own download protection remains enabled.
 
 Open **Settings** in the side panel (or the full tab) to:
 
-- **Awareness reminders**: choose **Off** (the default), **Every 12 hours**, or
-  **Every 24 hours**. A reminder shows a short cybersecurity or scam awareness tip
+- **Awareness reminders**: choose **Every 12 hours** (the default), **Every 24 hours**, or
+  **Off**, then select **Save**. A reminder shows a short cybersecurity or scam awareness tip
   as a Windows notification (it stays on screen until dismissed) and as an "Awareness tip"
   toast over the top of the panel until you choose **Got it**. The toast only appears while
   the side panel is open. Reminders are not sent while Chrome is closed.
