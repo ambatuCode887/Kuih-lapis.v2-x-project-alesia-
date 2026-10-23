@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 
@@ -44,8 +45,12 @@ def _auth_headers() -> dict[str, str]:
 
 def _call(method: str, url: str, **kwargs: Any) -> dict[str, Any]:
     try:
+        headers = _auth_headers()
+    except (GoogleAuthError, ValueError) as error:
+        raise ReviewSheetError(f"Sheets auth failed: {error}") from error
+    try:
         response = requests.request(
-            method, url, headers=_auth_headers(), timeout=TIMEOUT_SECONDS, **kwargs
+            method, url, headers=headers, timeout=TIMEOUT_SECONDS, **kwargs
         )
     except requests.RequestException as error:
         raise ReviewSheetError(f"Sheets request failed: {error}") from error
