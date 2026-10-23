@@ -1342,6 +1342,7 @@ body {
   height: 44px;
 }
 .rail--min .rail-head .brand {
+  gap: 0;
   transition: opacity 0.2s ease, transform 0.25s ease;
 }
 /* The arrow button sits exactly over the logo, invisible until hovered or focused. */
@@ -1525,6 +1526,32 @@ body {
 .rail--min .rail-new svg {
   flex-shrink: 0;
   margin: 0;
+}
+/* In the strip, "New check" is just the icon image, with no button styling. */
+.app-panel .rail.rail--min .rail-new,
+.app-tab .rail.rail--min .rail-new {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+}
+.app-panel .rail.rail--min .rail-new:hover,
+.app-tab .rail.rail--min .rail-new:hover {
+  background: none;
+  box-shadow: none;
+  color: var(--pine-text);
+}
+.app-panel .rail.rail--min .rail-new::after,
+.app-tab .rail.rail--min .rail-new::after {
+  display: none;
+}
+.rail--min .rail-new-img {
+  display: block;
+  width: 26px;
+  height: 26px;
 }
 
 /* ───────── Quick actions: exactly as wide as the message box ───────── */

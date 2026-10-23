@@ -30,6 +30,7 @@ import {
   PencilIcon,
   TrashIcon,
   PlusIcon,
+  PlusButtonIcon,
   QuestionIcon,
   SendIcon,
   StopIcon,
@@ -201,26 +202,21 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [greeting, setGreeting] = useState(pickGreeting);
   const [input, setInput] = useState("");
   const suggestions = matchSuggestions(input);
-  // The history sidebar can be minimised to a thin strip. The choice is remembered.
+  // The history sidebar starts closed; the key is versioned so older saved choices don't override it.
+  const railKey =
+    layout === "panel" ? "rail-minimised-panel-v2" : "rail-minimised-v2";
   const [railMin, setRailMin] = useState(() => {
     try {
-      const saved = localStorage.getItem(
-        layout === "panel" ? "rail-minimised-panel" : "rail-minimised",
-      );
-      if (saved === null) return layout === "panel";
-      return saved === "1";
+      return localStorage.getItem(railKey) !== "0";
     } catch {
-      return false;
+      return true;
     }
   });
   function toggleRail() {
     setRailMin((current) => {
       const next = !current;
       try {
-        localStorage.setItem(
-          layout === "panel" ? "rail-minimised-panel" : "rail-minimised",
-          next ? "1" : "0",
-        );
+        localStorage.setItem(railKey, next ? "1" : "0");
       } catch {
         /* remembering the choice is optional */
       }
@@ -677,7 +673,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           <div className="rail-head">
             <div className="brand">
               <Mark />
-              <span className="brand-name">Project Alesia</span>
+              <span className="brand-name">Project//Alesia</span>
             </div>
             <button
               type="button"
@@ -701,11 +697,15 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
             type="button"
             className="rail-new"
             onClick={newCheck}
-            aria-label="New check"
-            title="New check"
+            aria-label="New chat"
+            title="New chat"
           >
-            <PlusIcon width={16} height={16} />{" "}
-            <span className="rail-new-text">New check</span>
+            {railMin ? (
+              <PlusButtonIcon className="rail-new-img" width={26} height={26} />
+            ) : (
+              <PlusIcon width={16} height={16} />
+            )}{" "}
+            <span className="rail-new-text">New chat</span>
           </button>
           <div id="rail-body" className="rail-body" inert={railMin}>
             <div className="rail-body-inner">
@@ -858,7 +858,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           <header className="bar">
             <div className="brand">
               <Mark />
-              <span className="brand-name">Project Alesia</span>
+              <span className="brand-name">Project//Alesia</span>
             </div>
             <div className="bar-actions">
               {onExpand && (
