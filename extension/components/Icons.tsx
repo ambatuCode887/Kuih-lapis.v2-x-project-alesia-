@@ -163,11 +163,21 @@ export const PlusButtonIcon = (props: IconProps) => (
 /** Brand mark: the arch logo image, shown unmodified. */
 export function Mark({ size = 26 }: { size?: number }) {
   return (
-    <img
-      src="/icon/logo-arch.svg"
-      alt=""
-      aria-hidden="true"
-      style={{ height: size, width: "auto" }}
-    />
+    <>
+      <img
+        className="brand-mark--light"
+        src="/icon/logo-arch.svg"
+        alt=""
+        aria-hidden="true"
+        style={{ height: size, width: "auto" }}
+      />
+      <img
+        className="brand-mark--dark"
+        src="/icon/logo-arch-white.svg"
+        alt=""
+        aria-hidden="true"
+        style={{ height: size, width: "auto" }}
+      />
+    </>
   );
 }

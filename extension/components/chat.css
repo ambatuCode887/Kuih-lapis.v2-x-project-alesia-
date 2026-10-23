@@ -217,6 +217,19 @@ a:focus-visible {
   letter-spacing: -0.01em;
 }
 
+/* The white arch shows on the dark backgrounds (default and Dark themes). */
+.brand-mark--dark {
+  display: none;
+}
+:root[data-theme='dark'] .brand-mark--light,
+:root[data-theme='black'] .brand-mark--light {
+  display: none;
+}
+:root[data-theme='dark'] .brand-mark--dark,
+:root[data-theme='black'] .brand-mark--dark {
+  display: block;
+}
+
 .bar {
   display: flex;
   align-items: center;
