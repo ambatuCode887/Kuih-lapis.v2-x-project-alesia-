@@ -1,6 +1,7 @@
 import { askAgent } from '@/lib/api';
 import { isCleanDomain } from '@/lib/domainStats';
 import {
+  DEFAULT_REMINDER,
   REMINDER_ALARM,
   REMINDER_KEY,
   REMINDER_NOTIFICATION,
@@ -236,7 +237,7 @@ async function closeSidePanel(): Promise<void> {
 async function readReminderInterval(): Promise<ReminderInterval> {
   const stored = await browser.storage.local.get(REMINDER_KEY);
   const value = stored[REMINDER_KEY];
-  return isReminderInterval(value) ? value : 'off';
+  return isReminderInterval(value) ? value : DEFAULT_REMINDER;
 }
 
 /**

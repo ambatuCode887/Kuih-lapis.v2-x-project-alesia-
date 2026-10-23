@@ -878,6 +878,22 @@ body {
   border-color: var(--pine);
   background: radial-gradient(circle, var(--pine) 45%, transparent 50%);
 }
+.settings-save {
+  min-height: 40px;
+  margin-top: 4px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--pine);
+  color: var(--card);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.settings-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 
 
 /* ───────── Settings button: bottom left ───────── */
