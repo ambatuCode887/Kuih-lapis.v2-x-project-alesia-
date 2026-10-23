@@ -1806,3 +1806,29 @@ body {
     opacity: 0.85;
   }
 }
+
+
+/* ───────── Awareness tip: an X in the corner to close it ───────── */
+.app > .reminder-toast {
+  padding-right: 48px;
+}
+.reminder-toast-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+.reminder-toast-x:hover {
+  background: color-mix(in srgb, var(--pine) 18%, transparent);
+  color: var(--ink);
+}

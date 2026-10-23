@@ -1136,6 +1136,15 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       </div>
       {reminderTip && (
         <div className="reminder-toast" role="status" aria-live="polite">
+          <button
+            type="button"
+            className="reminder-toast-x"
+            onClick={dismissReminderTip}
+            aria-label="Close this tip"
+            title="Close"
+          >
+            <CloseIcon width={16} height={16} />
+          </button>
           <span className="reminder-toast-title">Awareness tip</span>
           <p className="reminder-toast-text">{reminderTip.message}</p>
           <button
