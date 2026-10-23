@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react';
+import type { SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -152,20 +152,22 @@ export const StopIcon = (props: IconProps) => (
   </Base>
 );
 
-/** Brand mark: a stamp ring with a tick, echoing the verdict seal. */
+/** Rounded square with a plus; takes the current text colour. */
+export const PlusButtonIcon = (props: IconProps) => (
+  <Base {...props} strokeWidth={1.4}>
+    <rect x="0.7" y="0.7" width="22.6" height="22.6" rx="5.5" />
+    <path d="M12 6.5v11M6.5 12h11" />
+  </Base>
+);
+
+/** Brand mark: the arch logo image, shown unmodified. */
 export function Mark({ size = 26 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
-      <circle cx="16" cy="16" r="14" fill="var(--pine)" />
-      <circle cx="16" cy="16" r="11" fill="none" stroke="var(--pine-ink)" strokeWidth="1.2" opacity="0.6" />
-      <path
-        d="M10.5 16.5l3.8 3.8 7.4-8"
-        fill="none"
-        stroke="var(--pine-ink)"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <img
+      src="/icon/logo-arch.svg"
+      alt=""
+      aria-hidden="true"
+      style={{ height: size, width: "auto" }}
+    />
   );
 }
