@@ -1,4 +1,9 @@
+import os
+
 import pytest
+
+
+os.environ.setdefault("VTAI_TOKEN", "test-token")
 
 
 @pytest.fixture(autouse=True)
