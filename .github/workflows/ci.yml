@@ -31,6 +31,9 @@ jobs:
       - name: Lint and type baseline
         run: python scripts/lint_baseline.py
       - name: Tests without browser or live backend
+        env:
+          VTAI_TOKEN: ci-test-token
+          EMBEDDING_PROVIDER: fake
         run: python -m pytest -m "not browser and not backend" -q
 
   extension:
