@@ -1138,8 +1138,8 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                 className={`mic${speech.listening ? " is-listening" : ""}`}
                 onClick={speech.toggle}
                 aria-pressed={speech.listening}
-                aria-label={speech.listening ? "Stop listening" : "Speak your message"}
-                title={speech.listening ? "Stop listening" : "Speak your message"}
+                aria-label={speech.listening ? "Stop dictating" : "Dictate"}
+                title={speech.listening ? "Stop dictating" : "Dictate"}
               >
                 <MicIcon width={22} height={22} />
               </button>
