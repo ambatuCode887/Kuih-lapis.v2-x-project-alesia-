@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertIcon, QuestionIcon } from './Icons';
+import { AlertIcon, CloseIcon, QuestionIcon } from './Icons';
 import './download-warning.css';
 
 const REVIEW_PREFIX = 'download-review-';
@@ -124,6 +124,17 @@ export default function DownloadWarning() {
             aria-modal="true"
             aria-labelledby={`download-warning-title-${review.downloadId}`}
           >
+            {/* Closing is the safe choice: it stops the download, the same as the big button. */}
+            <button
+              className="warning__close"
+              disabled={busy}
+              onClick={() => choose(review.downloadId, 'cancel')}
+              type="button"
+              aria-label="Close and stop this download"
+              title="Close (stops this download)"
+            >
+              <CloseIcon width={18} height={18} />
+            </button>
             <div className="warning__badge" aria-hidden="true">
               {malicious ? <AlertIcon /> : <QuestionIcon />}
             </div>

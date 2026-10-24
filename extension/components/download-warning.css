@@ -129,3 +129,38 @@
     transition: none;
   }
 }
+
+
+/* The X in the corner. It stops the download, because leaving a risky file paused with no
+   answer would be worse than stopping it. */
+.warning {
+  position: relative;
+}
+.warning__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.warning__close:hover:not(:disabled) {
+  border-color: var(--pine);
+  background: color-mix(in srgb, var(--pine) 16%, transparent);
+}
+.warning__close:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+.warning__close:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
