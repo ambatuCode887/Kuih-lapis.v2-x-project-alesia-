@@ -1900,3 +1900,120 @@ body {
   background: color-mix(in srgb, var(--pine) 18%, transparent);
   color: var(--ink);
 }
+
+
+/* ───────── Microphone button and listening status ───────── */
+.mic {
+  order: 1;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+.mic:hover {
+  border-color: var(--pine);
+  background: color-mix(in srgb, var(--pine) 16%, var(--card));
+}
+.mic.is-listening {
+  border-color: var(--pine);
+  background: var(--pine);
+  color: var(--pine-ink);
+}
+
+.mic-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 12px 8px;
+  padding: 8px 12px;
+  border: 2px solid var(--line-strong);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.app-tab .mic-status {
+  width: 100%;
+  max-width: 712px;
+  margin: 0 auto 8px;
+  box-sizing: border-box;
+}
+.mic-status.has-problem {
+  border-color: var(--risk-moderate);
+}
+.mic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--risk-critical);
+}
+.mic-status-btn {
+  min-height: 32px;
+  padding: 2px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mic-status-btn:hover {
+  border-color: var(--pine);
+  background: color-mix(in srgb, var(--pine) 16%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mic.is-listening {
+    animation: mic-pulse 1.6s ease-out infinite;
+  }
+  .mic-dot {
+    animation: mic-blink 1.2s ease-in-out infinite;
+  }
+  @keyframes mic-pulse {
+    from {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--pine) 55%, transparent);
+    }
+    to {
+      box-shadow: 0 0 0 12px transparent;
+    }
+  }
+  @keyframes mic-blink {
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+
+
+/* Listening strip: the text and Stop on the first row, the language switch on its own row. */
+.mic-status > span:nth-child(2) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.mic-status-stop {
+  order: 2;
+  margin-left: auto;
+}
+.mic-status-switch {
+  order: 3;
+}
+
+/* Microphone sits right beside the send button: Photo, text field, mic, send. */
+.composer-row .mic {
+  order: 3;
+}
+.composer-row .send {
+  order: 4;
+}
