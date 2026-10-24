@@ -2,9 +2,6 @@ import os
 
 import pytest
 
-os.environ.setdefault("VTAI_TOKEN", "test-token")
-os.environ.setdefault("EMBEDDING_PROVIDER", "fake")
-
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "browser: drives the built Chrome extension with Playwright")
