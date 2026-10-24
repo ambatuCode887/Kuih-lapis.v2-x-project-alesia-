@@ -13,6 +13,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import { askAgent, isAbortError, resetSession } from "@/lib/api";
 import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
+import { SPEECH_LANGUAGES, SPEECH_PROBLEM_TEXT, useSpeechInput } from "@/lib/speech";
 import { useTheme } from "@/lib/theme";
 import { REMINDER_TIP_KEY, type ReminderTip } from "@/lib/reminders";
 import suggestionList from "@/lib/suggestions.json";
@@ -26,6 +27,7 @@ import {
   LinkIcon,
   Mark,
   MessageIcon,
+  MicIcon,
   PaperclipIcon,
   PencilIcon,
   TrashIcon,
@@ -245,6 +247,11 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [reminderTip, setReminderTip] = useState<ReminderTip | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Speech to text: spoken words are added to whatever is already in the box.
+  const speech = useSpeechInput(
+    () => inputRef.current?.value ?? "",
+    (text) => setInput(text),
+  );
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -433,6 +440,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   }
 
   function send() {
+    speech.stop();
     const text = input;
     const images = attachments;
     setInput("");
@@ -503,6 +511,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   }
 
   function newCheck() {
+    speech.stop();
     // A check that is still running belongs to the old session, so stop it first.
     if (abortRef.current) discardStopRef.current = true;
     abortRef.current?.abort();
@@ -1011,6 +1020,44 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           </p>
         )}
 
+        {speech.supported && (speech.listening || speech.problem) && (
+          <div className={`mic-status${speech.problem ? " has-problem" : ""}`} role="status" aria-live="polite">
+            {speech.problem ? (
+              <>
+                <span>{SPEECH_PROBLEM_TEXT[speech.problem]}</span>
+                {speech.problem === "blocked" && onExpand && (
+                  <button type="button" className="mic-status-btn" onClick={onExpand}>
+                    Open in a full tab
+                  </button>
+                )}
+                <button type="button" className="mic-status-btn" onClick={speech.clearProblem}>
+                  Dismiss
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="mic-dot" aria-hidden="true" />
+                <span>
+                  Listening in {SPEECH_LANGUAGES.find((item) => item.value === speech.lang)?.label}…
+                </span>
+                {SPEECH_LANGUAGES.filter((item) => item.value !== speech.lang).map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className="mic-status-btn mic-status-switch"
+                    onClick={() => speech.setLang(item.value)}
+                  >
+                    Switch to {item.label}
+                  </button>
+                ))}
+                <button type="button" className="mic-status-btn mic-status-stop" onClick={speech.stop}>
+                  Stop
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <form
           className={`composer is-start${dragging ? " is-dragging" : ""}`}
           onSubmit={(event) => {
@@ -1085,6 +1132,18 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
               <PaperclipIcon width={22} height={22} />
               <span>Photo</span>
             </button>
+            {speech.supported && (
+              <button
+                type="button"
+                className={`mic${speech.listening ? " is-listening" : ""}`}
+                onClick={speech.toggle}
+                aria-pressed={speech.listening}
+                aria-label={speech.listening ? "Stop dictating" : "Dictate"}
+                title={speech.listening ? "Stop dictating" : "Dictate"}
+              >
+                <MicIcon width={22} height={22} />
+              </button>
+            )}
             <input
               ref={fileRef}
               type="file"
