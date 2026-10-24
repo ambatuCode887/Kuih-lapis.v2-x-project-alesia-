@@ -259,13 +259,25 @@ async function showReminder(): Promise<void> {
   const message = pickReminderMessage();
   const tip: ReminderTip = { message, at: Date.now() };
   await browser.storage.local.set({ [REMINDER_TIP_KEY]: tip });
-  await browser.notifications.create(REMINDER_NOTIFICATION, {
+  // Windows shows no new banner when an existing notification ID is updated, so every reminder
+  // gets a unique ID. Older reminders are cleared first, leaving only the latest in the Action Center.
+  const current = await browser.notifications.getAll();
+  await Promise.all(
+    Object.keys(current)
+      .filter(isReminderNotification)
+      .map((id) => browser.notifications.clear(id)),
+  );
+  await browser.notifications.create(`${REMINDER_NOTIFICATION}-${Date.now()}`, {
     type: 'basic',
     iconUrl: browser.runtime.getURL('/icon/128.png'),
     title: 'Project Alesia reminder',
     message,
     requireInteraction: true,
   });
+}
+
+function isReminderNotification(id: string): boolean {
+  return id.startsWith(`${REMINDER_NOTIFICATION}-`);
 }
 
 export default defineBackground(() => {
@@ -324,7 +336,7 @@ export default defineBackground(() => {
   });
 
   browser.notifications.onClicked.addListener((id) => {
-    if (id === REMINDER_NOTIFICATION) void browser.notifications.clear(id);
+    if (isReminderNotification(id)) void browser.notifications.clear(id);
   });
 
   browser.notifications.onButtonClicked.addListener((id, buttonIndex) => {
