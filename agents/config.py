@@ -15,7 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_ROOT = Path(__file__).resolve().parent
 DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
 DEFAULT_OPENROUTER_MODEL = "nvidia/nemotron-3.5-lightning:free"
-DEFAULT_GOOGLE_MODEL = "gemini-3.5-flash"
+DEFAULT_GOOGLE_MODEL = "gemini-3.5-flash-lite"
 
 
 def project_env_path() -> Path | None:
@@ -40,9 +40,32 @@ def env(name: str, default: str | None = None) -> str | None:
 
 def agent_model():
     provider = (env("LLM_PROVIDER", "google") or "google").strip().lower()
+    fallback_provider = (env("LLM_FALLBACK_PROVIDER", "") or "").strip().lower()
+    if fallback_provider and provider != "google":
+        raise ValueError("LLM_FALLBACK_PROVIDER is currently supported only with LLM_PROVIDER=google.")
     if provider == "google":
         required_env("GOOGLE_API_KEY")
-        return (env("LLM_MODEL", DEFAULT_GOOGLE_MODEL) or DEFAULT_GOOGLE_MODEL).strip()
+        model_name = (env("LLM_MODEL", DEFAULT_GOOGLE_MODEL) or DEFAULT_GOOGLE_MODEL).strip()
+        if not fallback_provider:
+            return model_name
+        if fallback_provider != "openrouter":
+            raise ValueError("LLM_FALLBACK_PROVIDER must be empty or 'openrouter'.")
+
+        from google.adk.models.google_llm import Gemini
+        from google.adk.models.lite_llm import LiteLlm
+
+        from agents.model_failover import FailoverLlm
+
+        fallback_name = env("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL) or DEFAULT_OPENROUTER_MODEL
+        required_env("OPENROUTER_API_KEY")
+        return FailoverLlm(
+            model=model_name,
+            primary_model=Gemini(model=model_name),
+            fallback_model=LiteLlm(
+                model=f"openrouter/{fallback_name.strip() or DEFAULT_OPENROUTER_MODEL}",
+                drop_params=True,
+            ),
+        )
 
     from google.adk.models.lite_llm import LiteLlm
 

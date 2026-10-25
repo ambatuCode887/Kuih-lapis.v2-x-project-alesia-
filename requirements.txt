@@ -1,4 +1,6 @@
 google-adk[extensions]==2.7.1
+# LiteLLM 1.106+ expects MCP 2.x, while ADK 2.7.1 requires MCP 1.x.
+litellm>=1.84,<1.106
 google-genai>=2.19.0
 python-dotenv>=1.0.0
 qdrant-client>=1.12.0

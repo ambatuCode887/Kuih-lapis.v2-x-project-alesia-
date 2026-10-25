@@ -13,6 +13,80 @@ body {
   background: var(--paper);
 }
 
+.llm-outage-overlay {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(9 17 15 / 62%);
+}
+
+.llm-outage-dialog {
+  width: min(100%, 30rem);
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--card);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 28%);
+  color: var(--ink);
+}
+
+.llm-outage-icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--risk-high) 14%, var(--card));
+  color: var(--risk-high);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.llm-outage-dialog h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.llm-outage-dialog p {
+  margin: 0.8rem 0 0;
+  color: var(--ink-2);
+  font-size: 1rem;
+}
+
+.llm-outage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.llm-outage-actions button {
+  min-height: 2.8rem;
+  padding: 0.55rem 1.2rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.llm-outage-retry {
+  border-color: var(--pine) !important;
+  background: var(--pine);
+  color: white;
+}
+
+.llm-outage-close {
+  background: transparent;
+  color: var(--ink);
+}
+
 /* Third drifting light (amber), like the website's backdrop. */
 .chat::before {
   content: '';

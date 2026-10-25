@@ -23,6 +23,7 @@ import {
   DEMO_MODE,
   askChecker,
   isAbortError,
+  isLlmUnavailableError,
   resetSession,
   type CheckMode,
 } from "@/lib/check/api";
@@ -103,6 +104,7 @@ export function Checker() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [llmUnavailable, setLlmUnavailable] = useState(false);
   const [notice, setNotice] = useState("");
   const [shown, setShown] = useState<Shown | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -190,6 +192,7 @@ export function Checker() {
     setPhase("checking");
     setStatus("");
     setError("");
+    setLlmUnavailable(false);
     setShown(null);
 
     try {
@@ -213,6 +216,11 @@ export function Checker() {
     } catch (cause) {
       if (isAbortError(cause)) {
         setPhase("idle");
+        return;
+      }
+      if (isLlmUnavailableError(cause)) {
+        setLlmUnavailable(true);
+        setPhase("error");
         return;
       }
       setError(cause instanceof Error ? cause.message : "Something went wrong. Please try again.");
@@ -251,7 +259,8 @@ export function Checker() {
   // On a phone this is one column. It must be minmax(0,1fr): a plain grid column grows to fit
   // its widest content, so one long unbroken line would push every card past the screen edge.
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+    <>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
       <div className="min-w-0 space-y-6">
         {DEMO_MODE && (
           <p
@@ -442,7 +451,7 @@ export function Checker() {
             </div>
           )}
 
-          {phase === "error" && (
+          {phase === "error" && !llmUnavailable && (
             <div role="alert" className="glass flex gap-4 rounded-3xl border-l-8 border-l-danger p-5 sm:p-6">
               <TriangleAlert aria-hidden size={30} className="mt-0.5 shrink-0 text-danger" />
               <div>
@@ -542,5 +551,46 @@ export function Checker() {
         />
       </aside>
     </div>
+      {llmUnavailable && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4"
+          role="presentation"
+        >
+          <section
+            aria-labelledby="llm-outage-title"
+            aria-modal="true"
+            className="w-full max-w-md rounded-3xl border border-line bg-card p-6 shadow-2xl sm:p-8"
+            role="alertdialog"
+          >
+            <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-danger/10 text-danger">
+              <TriangleAlert aria-hidden size={26} />
+            </div>
+            <h2 className="text-2xl font-bold" id="llm-outage-title">
+              Our AI is temporarily unavailable
+            </h2>
+            <p className="mt-3 text-lg text-ink-2">
+              Gemini and the backup AI could not respond. Please try again in a few minutes.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                autoFocus
+                className="min-h-12 rounded-full bg-jade px-6 text-lg font-bold text-on-jade hover:opacity-90"
+                onClick={() => void runCheck()}
+                type="button"
+              >
+                Try again
+              </button>
+              <button
+                className="min-h-12 rounded-full border-2 border-line px-6 text-lg font-bold hover:bg-paper"
+                onClick={() => setLlmUnavailable(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </>
   );
 }

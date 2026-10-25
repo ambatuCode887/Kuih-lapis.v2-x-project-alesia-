@@ -54,32 +54,103 @@ flowchart LR
 
 ## Get started
 
-### Requirements
+### Before running setup
 
-- Python 3.13
-- A Google API key for Gemini chat and embeddings
-- A Qdrant instance: local Docker or Qdrant Cloud
-- Ollama with `qwen2.5:7b` or an OpenRouter API key if using either alternative chat provider
-- Node.js and npm to run the web checker or browser extension
-- A VirusTotal AI token (`VTAI_TOKEN`) for reputation checks
+Open the repository folder in VS Code, then open its PowerShell terminal. Install these prerequisites first; `setup.ps1` installs this project's dependencies but does not install system software or create external accounts:
 
-### 1. Install the backend
+- **Python 3.13 or newer**, with the Python launcher (`py`) or Python on `PATH`.
+- **Node.js 20.18.1 or newer in the 20.x line, or 22.9.0 or newer**, which includes npm.
+- **A Google AI API key** for Gemini chat and embeddings. Create one in [Google AI Studio](https://aistudio.google.com/api-keys).
+- **An OpenRouter API key** for the configured Gemini-to-OpenRouter failover. Create one in [OpenRouter settings](https://openrouter.ai/settings/keys).
+- **A VirusTotal AI (VTAI) Agent Token** for link and file reputation checks. Create free access at the [VTAI connection page](https://ai.virustotal.com/connect/mcp?client=other).
+- **A Qdrant endpoint**: create a [Qdrant Cloud](https://cloud.qdrant.io) cluster, or install [Docker Desktop](https://www.docker.com/products/docker-desktop/) to run Qdrant locally.
+- **Google Chrome 116 or newer** if you plan to run the browser extension.
 
-From the repository root:
+Optional features need their own credentials: Ollama for an alternative local chat model, Google service-account access for the review sheet, and Confluence credentials for publishing.
+
+### 1. Install project dependencies
+
+Run this once from the repository root in the VS Code PowerShell terminal:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install --upgrade pip
-.\.venv\Scripts\pip install -r requirements.txt
-Copy-Item .env.example .env
+.\setup.ps1
 ```
 
-Open `.env` and set the required values. At minimum, configure:
+The script creates `.venv`, installs backend and development Python packages, runs `npm ci` for the web app and extension, and creates `.env` and `web/.env.local` if they do not exist. It preserves existing environment files. The repository also recommends the Python, Pylance, and ESLint VS Code extensions and selects `.venv` as the Python interpreter.
+
+If PowerShell blocks the script, allow scripts only for the current terminal session, then rerun it:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\setup.ps1
+```
+
+### 2. Get API credentials
+
+**Google Gemini**
+
+1. Sign in to [Google AI Studio API keys](https://aistudio.google.com/api-keys).
+2. Select or create a Google Cloud project, then create an API key.
+3. Copy the key into `GOOGLE_API_KEY` in the project-root `.env` file. Do not commit or share the key.
+
+See Google's [Gemini API key guide](https://ai.google.dev/gemini-api/docs/api-key) if you need help importing a Cloud project or managing the key.
+
+**OpenRouter failover**
+
+1. Create an API key in [OpenRouter settings](https://openrouter.ai/settings/keys).
+2. Put it in `OPENROUTER_API_KEY` in `.env`. `OPENROUTER_MODEL` is already set to the fallback model in `.env.example`.
+
+**VirusTotal AI (VTAI)**
+
+1. Open the [VTAI connection page](https://ai.virustotal.com/connect/mcp?client=other) and sign in with Google.
+2. Choose **Create free access** to create a VTAI Agent Token. This project uses the token directly; a classic VirusTotal API key is not interchangeable.
+3. Download or copy the token and place it in `VTAI_TOKEN` in `.env`. Store it securely; do not commit it. VTAI may display the new agent handle and activity totals publicly.
+
+See the official [VTAI overview](https://docs.virustotal.com/docs/vtai-overview) for the token and service details.
+
+### 3. Set up Qdrant
+
+Choose **one** option.
+
+**Option A: Qdrant Cloud**
+
+1. Sign up at [Qdrant Cloud](https://cloud.qdrant.io) and create a cluster. The [Qdrant Cloud quick start](https://qdrant.tech/documentation/cloud-quickstart/) walks through cluster creation.
+2. In the cluster details, copy the cluster URL. Open **API Keys**, select **Create**, and copy the new database API key; Qdrant displays the key only once. See [Qdrant Cloud authentication](https://qdrant.tech/documentation/cloud/authentication/) for details.
+3. Put the values in `.env`:
+
+   ```dotenv
+   QDRANT_URL=https://your-cluster-endpoint:6333
+   QDRANT_API_KEY=your_qdrant_database_api_key
+   QDRANT_COLLECTION=multi_agentic_rag_gemini
+   ```
+
+**Option B: Local Qdrant with Docker Desktop**
+
+1. Install and open [Docker Desktop](https://www.docker.com/products/docker-desktop/). Wait until Docker reports that it is running.
+2. In the VS Code PowerShell terminal, run:
+
+   ```powershell
+   docker volume create alesia-qdrant
+   docker run -d --name alesia-qdrant -p 6333:6333 -v alesia-qdrant:/qdrant/storage qdrant/qdrant
+   ```
+
+3. Open [http://localhost:6333/dashboard](http://localhost:6333/dashboard) to check that Qdrant is available. The project `.env` defaults already point to this local endpoint; keep `QDRANT_API_KEY` blank for this local development setup.
+
+See Qdrant's [local quick start](https://qdrant.tech/documentation/quickstart/) for more detail. Do not expose an unauthenticated local Qdrant service to the public internet.
+
+In either option, the ingestion command below creates the configured collection if it does not already exist, using `EMBEDDING_DIM`. Keep the embedding model and dimension consistent between ingestion and retrieval.
+
+### 4. Review credentials and configuration
+
+Open `.env` and confirm the Gemini and VTAI values you added above. The following Qdrant values are for the local Docker option; if you chose Qdrant Cloud, keep the cloud URL and API key from step 3 instead.
 
 ```dotenv
 GOOGLE_API_KEY=your_google_api_key
 LLM_PROVIDER=google
 LLM_MODEL=gemini-3.5-flash
+LLM_FALLBACK_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
 EMBEDDING_PROVIDER=google
 EMBEDDING_MODEL=gemini-embedding-001
 EMBEDDING_DIM=768
@@ -89,22 +160,13 @@ QDRANT_COLLECTION=multi_agentic_rag_gemini
 VTAI_TOKEN=your_virustotal_ai_token
 ```
 
-The supported `LLM_PROVIDER` values are `google`, `ollama`, and `openrouter`. Google Gemini 3.5 Flash is the default chat model. For Ollama, configure `OLLAMA_MODEL` and `OLLAMA_BASE_URL`; for OpenRouter, provide `OPENROUTER_API_KEY` and `OPENROUTER_MODEL`. Gemini is also the embedding provider by default; Ollama embeddings are available if you intentionally set `EMBEDDING_PROVIDER=ollama`.
+With the example settings, Gemini 3.5 Flash is the primary chat model. If a Gemini request fails before returning a response, the agent retries that request with the configured OpenRouter model. Set `LLM_FALLBACK_PROVIDER=` to disable failover. The supported `LLM_PROVIDER` values are `google`, `ollama`, and `openrouter`; OpenRouter can also be selected as the primary provider. Gemini remains the embedding provider, independent of chat-model failover.
 
-Keep `.env` private. Do not commit API keys, service-account files, or other credentials.
+The configured free Nemotron endpoint has separate rate limits and may be unavailable too, so this improves resilience but cannot promise 100% uptime. OpenRouter's [model page](https://openrouter.ai/nvidia/nemotron-3.5-lightning:free) says not to send confidential information or personal data to this free endpoint. Because Alesia analyzes user-submitted messages and attachments, use a model/provider with privacy terms appropriate to your data, or disable this fallback before processing sensitive real-user content.
 
-### 2. Start Qdrant
+Keep `.env` private. Do not commit API keys, service-account files, or other credentials. The setup script does not ingest data or create, clear, or modify a Qdrant collection.
 
-For a local instance with persistent Docker storage:
-
-```powershell
-docker volume create alesia-qdrant
-docker run -d --name alesia-qdrant -p 6333:6333 -v alesia-qdrant:/qdrant/storage qdrant/qdrant
-```
-
-To use Qdrant Cloud instead, set `QDRANT_URL` and `QDRANT_API_KEY` in `.env`. Use the **same embedding model and dimension** for ingestion and retrieval against a collection.
-
-### 3. Ingest knowledge
+### 5. Ingest knowledge
 
 The repository includes a Markdown knowledge file and a question-and-answer CSV. Ingest either or both into the configured collection:
 
@@ -114,7 +176,7 @@ The repository includes a Markdown knowledge file and a question-and-answer CSV.
 
 CSV question-and-answer rows are stored individually. The importer uses stable point IDs, saves successful batches as it goes, and skips rows already present when the same source is run again.
 
-### 4. Start the backend
+### 6. Start the backend
 
 ```powershell
 .\.venv\Scripts\adk.exe api_server agents --port 8000 --host 127.0.0.1 --allow_origins 'regex:chrome-extension://(gjicmadlhaabnjngkinahbedaghaiblf|mhpjopnhfojchhjimknnpoafcgmgjpak)'
@@ -122,7 +184,7 @@ CSV question-and-answer rows are stored individually. The importer uses stable p
 
 The API listens at `http://127.0.0.1:8000`. The origin allowlist is for the listed extension IDs; update it if your unpacked extension uses a different ID. The Docker image starts the backend on the `PORT` supplied by Render; configure its environment variables in the Render service settings.
 
-### 5. Run an interface
+### 7. Run an interface
 
 **Chrome extension**
 
@@ -196,8 +258,9 @@ The full evaluation uses the configured embedding provider for retrieval and RAG
 | `GOOGLE_API_KEY` | Gemini embeddings and Google services used by the backend |
 | `LLM_PROVIDER` | `google` by default; `ollama` and `openrouter` are also supported |
 | `LLM_MODEL` | Google chat model; defaults to `gemini-3.5-flash` |
+| `LLM_FALLBACK_PROVIDER` | Optional failover provider for Google chat; set to `openrouter` or leave blank |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | OpenRouter API key and fallback/primary chat model |
 | `OLLAMA_MODEL`, `OLLAMA_BASE_URL` | Optional local chat model and Ollama endpoint; also used by full RAGAS evaluation |
-| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | OpenRouter chat model settings |
 | `EMBEDDING_PROVIDER` | `google` by default; `ollama` is an optional alternative |
 | `EMBEDDING_MODEL` | `gemini-embedding-001` by default |
 | `EMBEDDING_DIM` | Vector size; defaults to `768` |
