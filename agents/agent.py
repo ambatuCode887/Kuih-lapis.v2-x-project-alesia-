@@ -16,6 +16,7 @@ from agents.config import agent_model, load_environment
 from agents.followups import _cached_followup_response, _followup_questions
 from agents.guards import _attachment_prompt_injection_notice, _requests_private_internals
 from agents.integrity import verify_agent_definitions
+from agents.model_failover import LlmFailoverExhaustedError
 from agents.root_prompt import _ROOT_INSTRUCTION
 # Re-exported so existing imports from agents.agent keep working.
 from agents.routing import (
@@ -425,6 +426,8 @@ class RequestRouter(Agent):
                         initial_report = _joined_text(event.content.parts)
                     _hide_specialist_text(event)
                     yield event
+        except LlmFailoverExhaustedError:
+            raise
         except Exception:
             logger.exception("Specialist %s failed; returning a safe fallback.", target_name)
             yield Event(
@@ -460,6 +463,8 @@ class RequestRouter(Agent):
                             follow_up_report = _joined_text(event.content.parts)
                         _hide_specialist_text(event)
                         yield event
+            except LlmFailoverExhaustedError:
+                raise
             except Exception:
                 # The specialist report is still usable; answer from it.
                 logger.exception("Coordinator failed; continuing with the specialist report.")
@@ -482,6 +487,8 @@ class RequestRouter(Agent):
                         for part in event.content.parts or []
                     )
                 yield event
+        except LlmFailoverExhaustedError:
+            raise
         except Exception:
             logger.exception("Root response generation failed; using specialist fallback.")
 

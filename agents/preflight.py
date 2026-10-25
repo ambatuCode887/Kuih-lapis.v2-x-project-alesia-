@@ -37,14 +37,23 @@ def missing_models(wanted: list[str], installed: list[str]) -> list[str]:
 
 def check_env() -> list[Check]:
     names = ["VTAI_TOKEN"]
-    if (env("LLM_PROVIDER", "ollama") or "ollama").strip().lower() == "openrouter":
+    llm_provider = (env("LLM_PROVIDER", "google") or "google").strip().lower()
+    fallback_provider = (env("LLM_FALLBACK_PROVIDER", "") or "").strip().lower()
+    embedding_provider = (env("EMBEDDING_PROVIDER", "google") or "google").strip().lower()
+    checks = []
+    if fallback_provider not in {"", "openrouter"}:
+        checks.append(Check("env LLM_FALLBACK_PROVIDER", False, "must be empty or 'openrouter'"))
+    if fallback_provider and llm_provider != "google":
+        checks.append(Check("env LLM_FALLBACK_PROVIDER", False, "currently requires LLM_PROVIDER=google"))
+    if llm_provider == "openrouter" or fallback_provider == "openrouter":
         names.append("OPENROUTER_API_KEY")
-    if (env("EMBEDDING_PROVIDER", "google") or "google").strip().lower() == "google":
+    if "google" in {llm_provider, embedding_provider}:
         names.append("GOOGLE_API_KEY")
-    return [
+    checks.extend([
         Check(f"env {name}", bool(env(name)), "set" if env(name) else "missing from .env")
         for name in names
-    ]
+    ])
+    return checks
 
 
 def check_ollama(client: httpx.Client, base_url: str, wanted: list[str]) -> Check:
@@ -91,9 +100,11 @@ def run_checks() -> list[Check]:
     checks = check_env()
 
     wanted: list[str] = []
-    if (env("LLM_PROVIDER", "ollama") or "ollama").strip().lower() == "ollama":
+    llm_provider = (env("LLM_PROVIDER", "google") or "google").strip().lower()
+    embedding_provider = (env("EMBEDDING_PROVIDER", "google") or "google").strip().lower()
+    if llm_provider == "ollama":
         wanted.append(env("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL) or DEFAULT_OLLAMA_MODEL)
-    if (env("EMBEDDING_PROVIDER", "google") or "google").strip().lower() == "ollama":
+    if embedding_provider == "ollama":
         wanted.append(env("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL) or DEFAULT_EMBEDDING_MODEL)
     ollama_url = (env("OLLAMA_BASE_URL", DEFAULT_OLLAMA_URL) or DEFAULT_OLLAMA_URL).rstrip("/")
     qdrant_url = env("QDRANT_URL", DEFAULT_QDRANT_URL) or DEFAULT_QDRANT_URL

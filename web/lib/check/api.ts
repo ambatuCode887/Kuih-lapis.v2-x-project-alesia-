@@ -14,6 +14,7 @@ export const DEMO_MODE = API_URL === "";
 const APP_NAME = "agents";
 const USER_ID = "web-user";
 const SESSION_KEY = "cyber-assistant-session";
+const LLM_FAILOVER_MARKER = "LLM_FAILOVER_EXHAUSTED";
 
 // Agents whose output is the structured risk assessment.
 const ASSESSMENT_AUTHORS = new Set(["message_agent", "url_check_agent"]);
@@ -56,6 +57,10 @@ export function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+export function isLlmUnavailableError(error: unknown): boolean {
+  return error instanceof Error && error.message === LLM_FAILOVER_MARKER;
+}
+
 async function readAgentEvents(
   response: Response,
   onStatus?: (status: string) => void,
@@ -80,7 +85,8 @@ async function readAgentEvents(
       error_details?: { error_message?: string };
     };
     if (payload.error) {
-      throw new Error(payload.error_details?.error_message ?? payload.error);
+      const message = payload.error_details?.error_message ?? payload.error;
+      throw new Error(message.includes(LLM_FAILOVER_MARKER) ? LLM_FAILOVER_MARKER : message);
     }
     events.push(payload);
     const status = payload.customMetadata?.status;
@@ -170,6 +176,10 @@ export async function askChecker(
     throw new Error("We could not reach the checker. Please try again in a moment.");
   }
   if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    if (details.includes(LLM_FAILOVER_MARKER)) {
+      throw new Error(LLM_FAILOVER_MARKER);
+    }
     throw new Error(`The checker had a problem (error ${response.status}). Please try again.`);
   }
 

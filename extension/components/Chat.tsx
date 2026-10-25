@@ -10,7 +10,12 @@ import {
 import Markdown from "react-markdown";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource/ibm-plex-mono/400.css";
-import { askAgent, isAbortError, resetSession } from "@/lib/api";
+import {
+  askAgent,
+  isAbortError,
+  isLlmUnavailableError,
+  resetSession,
+} from "@/lib/api";
 import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
 import { SPEECH_LANGUAGES, SPEECH_PROBLEM_TEXT, useSpeechInput } from "@/lib/speech";
@@ -230,6 +235,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [llmUnavailable, setLlmUnavailable] = useState(false);
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
   const [status, setStatus] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -258,6 +264,10 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const loadingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const failedLlmRequestRef = useRef<{
+    text: string;
+    images: string[];
+  } | null>(null);
   // Set when "New check" stops a running check, so no visible stopped message is added.
   const discardStopRef = useRef(false);
   const sendTextRef = useRef(sendText);
@@ -353,7 +363,11 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  async function sendText(rawText: string, images: string[] = []) {
+  async function sendText(
+    rawText: string,
+    images: string[] = [],
+    appendUserMessage = true,
+  ) {
     const text = rawText.trim();
     if ((!text && images.length === 0) || loadingRef.current) return;
 
@@ -361,17 +375,20 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     setFocusId(null);
     setLoading(true);
     setStatus("");
+    setLlmUnavailable(false);
     const controller = new AbortController();
     abortRef.current = controller;
-    setMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        role: "user",
-        text,
-        images: images.length ? images : undefined,
-      },
-    ]);
+    if (appendUserMessage) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "user",
+          text,
+          images: images.length ? images : undefined,
+        },
+      ]);
+    }
 
     const assistantId = crypto.randomUUID();
     let participatingAgents: string[] = [];
@@ -414,6 +431,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           };
           setMessages((current) => [...current, stoppedMessage]);
         }
+      } else if (isLlmUnavailableError(error)) {
+        failedLlmRequestRef.current = { text, images };
+        setLlmUnavailable(true);
       } else {
         const errorText =
           error instanceof Error ? error.message : "Something went wrong.";
@@ -438,6 +458,12 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
 
   function stopGeneration() {
     abortRef.current?.abort();
+  }
+
+  function retryAfterLlmOutage() {
+    const failedRequest = failedLlmRequestRef.current;
+    setLlmUnavailable(false);
+    if (failedRequest) void sendText(failedRequest.text, failedRequest.images, false);
   }
 
   function send() {
@@ -676,6 +702,35 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       </div>
       <NotificationConsentDialog />
       <DownloadWarning />
+      {llmUnavailable && (
+        <div className="llm-outage-overlay" role="presentation">
+          <section
+            aria-labelledby="llm-outage-title"
+            aria-modal="true"
+            className="llm-outage-dialog"
+            role="alertdialog"
+          >
+            <div aria-hidden="true" className="llm-outage-icon">
+              !
+            </div>
+            <h2 id="llm-outage-title">Our AI is temporarily unavailable</h2>
+            <p>Gemini and the backup AI could not respond. Please try again in a few minutes.</p>
+            <div className="llm-outage-actions">
+              <button
+                autoFocus
+                className="llm-outage-retry"
+                onClick={retryAfterLlmOutage}
+                type="button"
+              >
+                Try again
+              </button>
+              <button className="llm-outage-close" onClick={() => setLlmUnavailable(false)} type="button">
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       {(layout === "tab" || layout === "panel") && (
         <aside
           className={`rail${railMin ? " rail--min" : ""}`}

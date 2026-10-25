@@ -10,6 +10,7 @@ from google.adk.events.event_actions import EventActions
 from google.adk.models.llm_request import LlmRequest
 
 from agents.config import agent_model
+from agents.model_failover import LlmFailoverExhaustedError
 from agents.scope import OUT_OF_SCOPE_REPLY, SCOPE_RULES
 from agents.tools.functions.retrieve.credential_stuffing import format_passage, retrieve_knowledge
 from agents.tools.functions.unanswered_log import append_unanswered
@@ -37,6 +38,10 @@ def _session_state(ctx: InvocationContext) -> dict:
 async def generate_model_answer(question: str) -> str:
     """Ask the configured chat model for an unverified answer when the knowledge base has none."""
     model = agent_model()
+    if isinstance(model, str):
+        from google.adk.models.google_llm import Gemini
+
+        model = Gemini(model=model)
     request = LlmRequest(
         model=model.model,
         contents=[types.Content(role="user", parts=[types.Part(text=question)])],
@@ -53,6 +58,8 @@ async def _knowledge_miss_report(question: str) -> str:
     report = "No relevant context was found in the knowledge base."
     try:
         answer = await generate_model_answer(question)
+    except LlmFailoverExhaustedError:
+        raise
     except Exception as error:  # the model may be offline; the miss is still logged
         logger.warning("Fallback model answer unavailable: %s", error)
         answer = ""
