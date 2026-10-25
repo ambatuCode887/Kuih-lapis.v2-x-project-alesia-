@@ -15,7 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_ROOT = Path(__file__).resolve().parent
 DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
 DEFAULT_OPENROUTER_MODEL = "nvidia/nemotron-3.5-lightning:free"
-DEFAULT_GOOGLE_MODEL = "gemini-3.5-flash"
+DEFAULT_GOOGLE_MODEL = "gemini-3.5-flash-lite"
 
 
 def project_env_path() -> Path | None:
