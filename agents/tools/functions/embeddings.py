@@ -2,12 +2,27 @@ from __future__ import annotations
 
 import hashlib
 import math
+import threading
+import time
 from typing import Sequence
 
 from agents.config import env, env_int
 
 GOOGLE_EMBEDDING_BATCH_SIZE = 100
 OLLAMA_EMBEDDING_BATCH_SIZE = 16
+DEFAULT_GOOGLE_EMBEDDING_REQUEST_DELAY_SECONDS = 2.0
+_GOOGLE_REQUEST_LOCK = threading.Lock()
+_LAST_GOOGLE_REQUEST_AT = 0.0
+
+
+def _wait_for_google_request_slot(delay: float) -> None:
+    """Space Google API request starts across calls in this process."""
+    global _LAST_GOOGLE_REQUEST_AT
+    with _GOOGLE_REQUEST_LOCK:
+        wait = delay - (time.monotonic() - _LAST_GOOGLE_REQUEST_AT)
+        if wait > 0:
+            time.sleep(wait)
+        _LAST_GOOGLE_REQUEST_AT = time.monotonic()
 
 
 def _hash_embedding(text: str, dimension: int) -> list[float]:
@@ -72,10 +87,18 @@ def embed_texts(texts: Sequence[str]) -> list[list[float]]:
 
     client = genai.Client(api_key=env("GOOGLE_API_KEY"))
     model = env("EMBEDDING_MODEL", "gemini-embedding-001") or "gemini-embedding-001"
+    request_delay_value = env("GOOGLE_EMBEDDING_REQUEST_DELAY_SECONDS")
+    request_delay = float(
+        request_delay_value or str(DEFAULT_GOOGLE_EMBEDDING_REQUEST_DELAY_SECONDS)
+    )
+    if request_delay < 0:
+        raise ValueError("GOOGLE_EMBEDDING_REQUEST_DELAY_SECONDS cannot be negative.")
     try:
         embeddings = []
-        for start in range(0, len(texts), GOOGLE_EMBEDDING_BATCH_SIZE):
+        batches = range(0, len(texts), GOOGLE_EMBEDDING_BATCH_SIZE)
+        for start in batches:
             batch = texts[start : start + GOOGLE_EMBEDDING_BATCH_SIZE]
+            _wait_for_google_request_slot(request_delay)
             response = client.models.embed_content(
                 model=model,
                 contents=list(batch),

@@ -233,26 +233,26 @@ def ingest_texts(
 
 
 def _delete_points_outside(source: str, file_path: str | None, keep_ids: set[str]) -> int:
-    from qdrant_client.models import Condition, ExtendedPointId, FieldCondition, Filter, MatchValue, PointIdsList
+    from qdrant_client.models import ExtendedPointId, PointIdsList
 
     qdrant = client()
     cfg = settings()
-    must: list[Condition] = [FieldCondition(key="source", match=MatchValue(value=source))]
-    if file_path is not None:
-        must.append(FieldCondition(key="file_path", match=MatchValue(value=file_path)))
-
     stale_ids: list[ExtendedPointId] = []
     offset = None
     while True:
         points, offset = qdrant.scroll(
             collection_name=cfg.collection,
-            scroll_filter=Filter(must=must),
             limit=256,
             offset=offset,
-            with_payload=False,
+            with_payload=["source", "file_path"],
             with_vectors=False,
         )
-        stale_ids.extend(str(point.id) for point in points if str(point.id) not in keep_ids)
+        for point in points:
+            payload = getattr(point, "payload", None) or {}
+            matches_source = payload.get("source") == source
+            matches_file = file_path is None or payload.get("file_path") == file_path
+            if matches_source and matches_file and str(point.id) not in keep_ids:
+                stale_ids.append(str(point.id))
         if offset is None:
             break
 
@@ -269,37 +269,61 @@ def _ingest_qa_csv_records(
     from qdrant_client.models import PointStruct
 
     ensure_collection()
-    vectors = embed_texts([record["text"] for record in records])
-    points = [
-        PointStruct(
-            id=_point_id(source, index, record["text"]),
-            vector=vector,
-            payload={
-                **record,
-                "source": source,
-                "chunk_index": index,
-                "file_name": document_path.name,
-                "file_path": str(document_path),
-            },
-        )
-        for index, (record, vector) in enumerate(zip(records, vectors, strict=True))
-    ]
-
     qdrant = client()
     cfg = settings()
-    for start in range(0, len(points), 64):
-        qdrant.upsert(
+    existing: dict[str, str] = {}
+    offset = None
+    while True:
+        stored_points, offset = qdrant.scroll(
             collection_name=cfg.collection,
-            points=points[start : start + 64],
-            wait=True,
+            limit=256,
+            offset=offset,
+            with_payload=["source", "file_path", "text"],
+            with_vectors=False,
         )
+        for point in stored_points:
+            payload = getattr(point, "payload", None) or {}
+            # `source` is the stable ingestion identity. Do not require a matching
+            # local file path so another machine can resume the same import.
+            if payload.get("source") == source:
+                existing[str(point.id)] = payload.get("text", "")
+        if offset is None:
+            break
 
-    replaced = _delete_points_outside(source, str(document_path), {str(point.id) for point in points})
+    pending = [
+        (index, record)
+        for index, record in enumerate(records)
+        if existing.get(_point_id(source, index, record["text"])) != record["text"]
+    ]
+    upserted = 0
+    for start in range(0, len(pending), 100):
+        batch = pending[start : start + 100]
+        vectors = embed_texts([record["text"] for _, record in batch])
+        points = [
+            PointStruct(
+                id=_point_id(source, index, record["text"]),
+                vector=vector,
+                payload={
+                    **record,
+                    "source": source,
+                    "chunk_index": index,
+                    "file_name": document_path.name,
+                    "file_path": str(document_path),
+                },
+            )
+            for (index, record), vector in zip(batch, vectors, strict=True)
+        ]
+        qdrant.upsert(collection_name=cfg.collection, points=points, wait=True)
+        upserted += len(points)
+
+    keep_ids = {_point_id(source, index, record["text"]) for index, record in enumerate(records)}
+    replaced = _delete_points_outside(source, str(document_path), keep_ids)
     return {
         "collection": cfg.collection,
         "source": source,
         "rows": len(records),
-        "upserted": len(points),
+        "upserted": upserted,
+        "already_present": len(records) - len(pending),
         "replaced": replaced,
     }
 
