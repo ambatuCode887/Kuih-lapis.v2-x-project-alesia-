@@ -1,5 +1,6 @@
 import { askAgent } from '@/lib/api';
 import { isCleanDomain } from '@/lib/domainStats';
+import { NOTIFICATION_CONSENT_KEY } from '@/lib/notification-consent';
 import {
   DEFAULT_REMINDER,
   REMINDER_ALARM,
@@ -52,6 +53,12 @@ function displayFilename(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) || 'this download';
 }
 
+/** Windows alerts are only sent after the user allows them in the permission popup. */
+async function notificationsAllowed(): Promise<boolean> {
+  const stored = await browser.storage.local.get(NOTIFICATION_CONSENT_KEY);
+  return stored[NOTIFICATION_CONSENT_KEY] === 'granted';
+}
+
 async function openDownloadReview(review: DownloadReview): Promise<void> {
   const key = reviewKey(review.downloadId);
   const [current] = await browser.downloads.search({ id: review.downloadId });
@@ -73,16 +80,27 @@ async function openDownloadReview(review: DownloadReview): Promise<void> {
     await browser.action.setBadgeText({ text: '!' });
   }
 
-  await browser.notifications
-    .create(reviewNotificationId(review.downloadId), {
-      type: 'basic',
-      iconUrl: browser.runtime.getURL('/icon/128.png'),
-      title: review.status === 'malicious' ? 'Malicious download stopped' : 'Unverified download paused',
-      message: `${filename} from ${review.domain || 'an unknown source'}. ${review.details}`,
-      requireInteraction: true,
-      buttons: [{ title: 'Stop this download' }, { title: 'Download anyway' }],
-    })
-    .catch((error) => console.warn('Could not show the download notification.', error));
+  if (await notificationsAllowed()) {
+    const statusText = review.status === 'malicious' ? 'Possibly malicious download' : 'Unverified download';
+    await browser.notifications
+      .create(reviewNotificationId(review.downloadId), {
+        type: 'basic',
+        iconUrl: browser.runtime.getURL('/icon/128.png'),
+        title: 'Action needed',
+        message: `${statusText}: ${filename} from ${review.domain || 'an unknown source'}. ${review.details}`,
+        contextMessage: 'Click to decide in Project Alesia',
+        requireInteraction: true,
+      })
+      .catch((error) => console.warn('Could not show the download notification.', error));
+  }
+}
+
+/**
+ * Opens the full-page view when the user clicks a download alert. A new tab is used because
+ * Chrome does not let a notification click open the side panel.
+ */
+async function openReviewFromNotification(): Promise<void> {
+  await browser.tabs.create({ url: browser.runtime.getURL('/app.html') });
 }
 
 async function inspectDownload(
@@ -267,6 +285,7 @@ async function showReminder(): Promise<void> {
       .filter(isReminderNotification)
       .map((id) => browser.notifications.clear(id)),
   );
+  if (!(await notificationsAllowed())) return;
   await browser.notifications.create(`${REMINDER_NOTIFICATION}-${Date.now()}`, {
     type: 'basic',
     iconUrl: browser.runtime.getURL('/icon/128.png'),
@@ -336,19 +355,17 @@ export default defineBackground(() => {
   });
 
   browser.notifications.onClicked.addListener((id) => {
-    if (isReminderNotification(id)) void browser.notifications.clear(id);
+    if (isReminderNotification(id)) {
+      void browser.notifications.clear(id);
+      return;
+    }
+    if (downloadIdFromNotification(id) !== null) {
+      console.info(`Opening the download review for notification ${id}.`);
+      void browser.notifications.clear(id);
+      void openReviewFromNotification();
+    }
   });
 
-  browser.notifications.onButtonClicked.addListener((id, buttonIndex) => {
-    const downloadId = downloadIdFromNotification(id);
-    if (downloadId === null) return;
-    // Button 0 is "Stop this download"; button 1 is "Download anyway".
-    void handleDownloadReviewAction({
-      type: 'download-review-action',
-      downloadId,
-      action: buttonIndex === 0 ? 'cancel' : 'proceed',
-    });
-  });
 
   browser.runtime.onInstalled.addListener(() => {
     browser.contextMenus.create({

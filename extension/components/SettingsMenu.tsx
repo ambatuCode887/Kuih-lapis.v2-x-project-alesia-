@@ -15,6 +15,49 @@ import {
   type ReminderInterval,
 } from "@/lib/reminders";
 import { GearIcon } from "./Icons";
+import {
+  NOTIFICATION_CONSENT_KEY,
+  isNotificationConsent,
+  type NotificationConsent,
+} from "@/lib/notification-consent";
+
+const CONSENT_OPTIONS: { value: NotificationConsent; label: string }[] = [
+  { value: "granted", label: "On" },
+  { value: "denied", label: "Off" },
+];
+
+function useNotificationConsent(): {
+  consent: NotificationConsent | undefined;
+  setConsent: (next: NotificationConsent) => void;
+} {
+  const [consent, setConsentState] = useState<NotificationConsent | undefined>();
+
+  useEffect(() => {
+    browser.storage.local.get(NOTIFICATION_CONSENT_KEY).then((result) => {
+      const stored = result[NOTIFICATION_CONSENT_KEY];
+      setConsentState(isNotificationConsent(stored) ? stored : undefined);
+    });
+
+    const onChange = (
+      changes: Record<string, { newValue?: unknown }>,
+      area: string,
+    ) => {
+      if (area !== "local" || !(NOTIFICATION_CONSENT_KEY in changes)) return;
+      const next = changes[NOTIFICATION_CONSENT_KEY]?.newValue;
+      setConsentState(isNotificationConsent(next) ? next : undefined);
+    };
+    browser.storage.onChanged.addListener(onChange);
+    return () => browser.storage.onChanged.removeListener(onChange);
+  }, []);
+
+  function setConsent(next: NotificationConsent) {
+    setConsentState(next);
+    void browser.storage.local.set({ [NOTIFICATION_CONSENT_KEY]: next });
+  }
+
+  return { consent, setConsent };
+}
+
 
 const MENU_WIDTH = 280;
 const MENU_EDGE = 12;
@@ -91,6 +134,7 @@ export default function SettingsMenu({
   const menu = useRef<HTMLDivElement>(null);
   const { draft, saved, setDraft, revertDraft, saveDraft } =
     useReminderInterval();
+  const { consent, setConsent } = useNotificationConsent();
 
   // The menu is rendered in <body> so the sidebar's clipping and blur containers cannot cut it off.
   // It opens above the button, which sits at the bottom of the sidebar.
@@ -199,6 +243,36 @@ export default function SettingsMenu({
               >
                 Save
               </button>
+            </section>
+            <section
+              className="settings-section"
+              aria-labelledby="settings-notifications-title"
+            >
+              <h3 id="settings-notifications-title" className="settings-heading">
+                Notifications
+              </h3>
+              <p className="settings-hint">
+                Windows alerts for reminders and unsafe downloads.
+              </p>
+              <div
+                className="settings-list"
+                role="radiogroup"
+                aria-labelledby="settings-notifications-title"
+              >
+                {CONSENT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    className={`settings-option${consent === option.value ? " is-on" : ""}`}
+                    aria-checked={consent === option.value}
+                    onClick={() => setConsent(option.value)}
+                  >
+                    <span className="settings-radio" aria-hidden="true" />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </section>
             <section
               className="settings-section"
