@@ -13,6 +13,7 @@ const APP_NAME = 'agents';
 const USER_ID = 'extension-user';
 const SESSION_KEY = 'session-id';
 const BACKEND_KEY = 'backend-url';
+const LLM_FAILOVER_MARKER = 'LLM_FAILOVER_EXHAUSTED';
 
 // Agents whose output is the structured risk assessment.
 const ASSESSMENT_AUTHORS = new Set(['message_agent', 'url_check_agent']);
@@ -69,6 +70,10 @@ export function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
+export function isLlmUnavailableError(error: unknown): boolean {
+  return error instanceof Error && error.message === LLM_FAILOVER_MARKER;
+}
+
 async function readAgentEvents(
   response: Response,
   onStatus?: (status: string) => void,
@@ -94,7 +99,8 @@ async function readAgentEvents(
       error_details?: { error_message?: string };
     };
     if (payload.error) {
-      throw new Error(payload.error_details?.error_message ?? payload.error);
+      const message = payload.error_details?.error_message ?? payload.error;
+      throw new Error(message.includes(LLM_FAILOVER_MARKER) ? LLM_FAILOVER_MARKER : message);
     }
 
     const event = payload as AdkEvent;
@@ -326,6 +332,10 @@ export async function askAgent(
     );
   }
   if (!response.ok) {
+    const details = await response.text().catch(() => '');
+    if (details.includes(LLM_FAILOVER_MARKER)) {
+      throw new Error(LLM_FAILOVER_MARKER);
+    }
     throw new Error(`The backend returned an error (HTTP ${response.status}).`);
   }
 

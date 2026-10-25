@@ -38,15 +38,22 @@ def missing_models(wanted: list[str], installed: list[str]) -> list[str]:
 def check_env() -> list[Check]:
     names = ["VTAI_TOKEN"]
     llm_provider = (env("LLM_PROVIDER", "google") or "google").strip().lower()
+    fallback_provider = (env("LLM_FALLBACK_PROVIDER", "") or "").strip().lower()
     embedding_provider = (env("EMBEDDING_PROVIDER", "google") or "google").strip().lower()
-    if llm_provider == "openrouter":
+    checks = []
+    if fallback_provider not in {"", "openrouter"}:
+        checks.append(Check("env LLM_FALLBACK_PROVIDER", False, "must be empty or 'openrouter'"))
+    if fallback_provider and llm_provider != "google":
+        checks.append(Check("env LLM_FALLBACK_PROVIDER", False, "currently requires LLM_PROVIDER=google"))
+    if llm_provider == "openrouter" or fallback_provider == "openrouter":
         names.append("OPENROUTER_API_KEY")
     if "google" in {llm_provider, embedding_provider}:
         names.append("GOOGLE_API_KEY")
-    return [
+    checks.extend([
         Check(f"env {name}", bool(env(name)), "set" if env(name) else "missing from .env")
         for name in names
-    ]
+    ])
+    return checks
 
 
 def check_ollama(client: httpx.Client, base_url: str, wanted: list[str]) -> Check:
