@@ -3,16 +3,35 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import random
 from pathlib import Path
 
 from openai import OpenAI
+from ragas.embeddings.base import BaseRagasEmbedding
 
 from agents.config import env
 from agents.eval.dataset import default_dataset_path, default_ragas_dataset_path, load_cases, load_ragas_cases
 from agents.eval.ragas_runner import evaluate_ragas, evaluate_retrieval
+from agents.tools.functions.embeddings import embed_texts as configured_embed_texts
 from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowledge
+
+
+class _ConfiguredRagasEmbedding(BaseRagasEmbedding):
+	"""Expose the app's configured embedding provider through RAGAS's interface."""
+
+	def embed_text(self, text: str) -> list[float]:
+		return configured_embed_texts([text])[0]
+
+	def embed_texts(self, texts: list[str]) -> list[list[float]]:
+		return configured_embed_texts(texts)
+
+	async def aembed_text(self, text: str) -> list[float]:
+		return await asyncio.to_thread(self.embed_text, text)
+
+	async def aembed_texts(self, texts: list[str]) -> list[list[float]]:
+		return await asyncio.to_thread(self.embed_texts, texts)
 
 
 def main() -> int:
@@ -51,13 +70,16 @@ def main() -> int:
 
 		base_url = (env("OLLAMA_BASE_URL", "http://localhost:11434") or "http://localhost:11434").rstrip("/")
 		model = env("OLLAMA_MODEL", "qwen2.5:7b") or "qwen2.5:7b"
-		embedding_model = env("EMBEDDING_MODEL", "nomic-embed-text:latest") or "nomic-embed-text:latest"
+		embedding_provider = (env("EMBEDDING_PROVIDER", "google") or "google").strip().lower()
+		default_embedding_model = (
+			"nomic-embed-text:latest" if embedding_provider == "ollama" else "gemini-embedding-001"
+		)
+		embedding_model = env("EMBEDDING_MODEL", default_embedding_model) or default_embedding_model
 		client = OpenAI(base_url=f"{base_url}/v1", api_key="ollama", timeout=240)
-		from ragas.embeddings.base import embedding_factory
 		from ragas.llms import llm_factory
 
 		llm = llm_factory(model=model, client=client)
-		embeddings = embedding_factory("openai", model=embedding_model, client=client)
+		embeddings = _ConfiguredRagasEmbedding()
 
 		def generate_answer(question: str, contexts: list[str]) -> str:
 			context_text = "\n\n".join(contexts) or "No relevant context was retrieved."
@@ -96,9 +118,10 @@ def main() -> int:
 		report["sample_seed"] = args.seed
 		report["sample_limit"] = args.limit or "all"
 		report["answer_model"] = model
+		report["embedding_provider"] = embedding_provider
+		report["embedding_model"] = embedding_model
 		if not args.grounding_only:
 			report["judge_model"] = model
-		report["embedding_model"] = embedding_model
 		report["evaluation_note"] = (
 			"This evaluation uses a caller-supplied dataset. Treat it as held out only "
 			"if its questions were not used to build or tune the indexed corpus."

@@ -117,22 +117,20 @@ def _point(row: ReviewRow, vector: list[float]) -> Any:
 
 
 def stored_texts(qdrant: Any, collection: str) -> dict[str, str]:
-    from qdrant_client.models import FieldCondition, Filter, MatchValue
-
-    flt = Filter(must=[FieldCondition(key="source", match=MatchValue(value=SOURCE))])
     stored: dict[str, str] = {}
     offset = None
     while True:
         points, offset = qdrant.scroll(
             collection_name=collection,
-            scroll_filter=flt,
             limit=256,
             offset=offset,
-            with_payload=["text"],
+            with_payload=["source", "text"],
             with_vectors=False,
         )
         for point in points:
-            stored[str(point.id)] = (point.payload or {}).get("text", "")
+            payload = point.payload or {}
+            if payload.get("source") == SOURCE:
+                stored[str(point.id)] = payload.get("text", "")
         if offset is None:
             return stored
 

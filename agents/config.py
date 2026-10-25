@@ -15,6 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_ROOT = Path(__file__).resolve().parent
 DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
 DEFAULT_OPENROUTER_MODEL = "nvidia/nemotron-3.5-lightning:free"
+DEFAULT_GOOGLE_MODEL = "gemini-3.5-flash"
 
 
 def project_env_path() -> Path | None:
@@ -38,15 +39,19 @@ def env(name: str, default: str | None = None) -> str | None:
 
 
 def agent_model():
+    provider = (env("LLM_PROVIDER", "google") or "google").strip().lower()
+    if provider == "google":
+        required_env("GOOGLE_API_KEY")
+        return (env("LLM_MODEL", DEFAULT_GOOGLE_MODEL) or DEFAULT_GOOGLE_MODEL).strip()
+
     from google.adk.models.lite_llm import LiteLlm
 
-    provider = (env("LLM_PROVIDER", "ollama") or "ollama").strip().lower()
     if provider == "openrouter":
         model_name = (env("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL) or "").strip()
         required_env("OPENROUTER_API_KEY")
         return LiteLlm(model=f"openrouter/{model_name or DEFAULT_OPENROUTER_MODEL}")
     if provider != "ollama":
-        raise ValueError("LLM_PROVIDER must be either 'ollama' or 'openrouter'.")
+        raise ValueError("LLM_PROVIDER must be 'google', 'ollama', or 'openrouter'.")
 
     model_name = (env("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL) or "").strip()
     base_url = (env("OLLAMA_BASE_URL", "http://localhost:11434") or "").strip()
