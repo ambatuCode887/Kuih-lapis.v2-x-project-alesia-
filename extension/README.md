@@ -53,8 +53,18 @@ Open **Settings** in the side panel (or the full tab) to:
   as a Windows notification (it stays on screen until dismissed) and as an "Awareness tip"
   toast over the top of the panel until you choose **Got it**. The toast only appears while
   the side panel is open. Reminders are not sent while Chrome is closed.
+- **Notifications**: **On** or **Off**. The first time you open the panel, a popup asks
+  whether to allow notifications. Until you answer, no Windows notifications are sent. Off
+  keeps reminders and download warnings in the panel only. If Chrome's own notification
+  switch is off in Windows Settings, the popup says so.
 - **Appearance**: pick one of the five colour themes.
 
 The reminder schedule uses the `alarms` permission and notifications use the
 `notifications` permission. The reminder tips are fixed messages in
-[lib/reminders.ts](lib/reminders.ts), not live answers from the agent.
+[lib/reminders.ts](lib/reminders.ts), not live answers from the agent. The notification
+consent is stored in `browser.storage.local` under `notification-consent`
+([lib/notification-consent.ts](lib/notification-consent.ts)).
+
+A download judged unsafe shows the in-app warning and, when notifications are allowed, a Windows
+notification titled "Action needed". Clicking the notification opens Project Alesia's full page in
+a new tab with the warning, where you choose **Stop this download** or **Download anyway**.

@@ -18,6 +18,7 @@ import { useTheme } from "@/lib/theme";
 import { REMINDER_TIP_KEY, type ReminderTip } from "@/lib/reminders";
 import suggestionList from "@/lib/suggestions.json";
 import DownloadWarning from "./DownloadWarning";
+import NotificationConsentDialog from "./NotificationConsent";
 import SettingsMenu from "./SettingsMenu";
 import {
   CloseIcon,
@@ -673,6 +674,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
         <span />
         <span />
       </div>
+      <NotificationConsentDialog />
       <DownloadWarning />
       {(layout === "tab" || layout === "panel") && (
         <aside
