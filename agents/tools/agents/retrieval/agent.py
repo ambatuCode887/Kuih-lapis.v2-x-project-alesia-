@@ -37,6 +37,10 @@ def _session_state(ctx: InvocationContext) -> dict:
 async def generate_model_answer(question: str) -> str:
     """Ask the configured chat model for an unverified answer when the knowledge base has none."""
     model = agent_model()
+    if isinstance(model, str):
+        from google.adk.models.google_llm import Gemini
+
+        model = Gemini(model=model)
     request = LlmRequest(
         model=model.model,
         contents=[types.Content(role="user", parts=[types.Part(text=question)])],

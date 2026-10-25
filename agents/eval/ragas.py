@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import random
+from typing import Any
 from pathlib import Path
 
 from openai import OpenAI
@@ -21,16 +22,16 @@ from agents.tools.functions.retrieve.credential_stuffing import retrieve_knowled
 class _ConfiguredRagasEmbedding(BaseRagasEmbedding):
 	"""Expose the app's configured embedding provider through RAGAS's interface."""
 
-	def embed_text(self, text: str) -> list[float]:
+	def embed_text(self, text: str, **kwargs: Any) -> list[float]:
 		return configured_embed_texts([text])[0]
 
-	def embed_texts(self, texts: list[str]) -> list[list[float]]:
+	def embed_texts(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
 		return configured_embed_texts(texts)
 
-	async def aembed_text(self, text: str) -> list[float]:
+	async def aembed_text(self, text: str, **kwargs: Any) -> list[float]:
 		return await asyncio.to_thread(self.embed_text, text)
 
-	async def aembed_texts(self, texts: list[str]) -> list[list[float]]:
+	async def aembed_texts(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
 		return await asyncio.to_thread(self.embed_texts, texts)
 
 
