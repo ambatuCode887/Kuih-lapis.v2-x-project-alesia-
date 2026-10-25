@@ -18,4 +18,4 @@ RUN useradd --system --uid 10001 --no-create-home appuser \
 USER appuser
 
 # Render injects PORT; secrets come from Render environment variables, not from a copied .env.
-CMD ["sh", "-c", "adk api_server agents --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "adk api_server agents --host 0.0.0.0 --port ${PORT:-8000} --allow_origins 'regex:chrome-extension://(gjicmadlhaabnjngkinahbedaghaiblf|mhpjopnhfojchhjimknnpoafcgmgjpak)'"]

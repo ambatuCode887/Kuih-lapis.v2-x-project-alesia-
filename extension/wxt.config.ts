@@ -14,7 +14,7 @@ export default defineConfig({
     // alarms and notifications power the optional awareness reminders (Settings > Reminders).
     permissions: ['sidePanel', 'storage', 'unlimitedStorage', 'contextMenus', 'downloads', 'alarms', 'notifications'],
     // Lets the extension call the local ADK server (also skips CORS checks).
-    host_permissions: ['http://127.0.0.1:8000/*', 'http://localhost:8000/*'],
+    host_permissions: ['http://127.0.0.1:8000/*', 'http://localhost:8000/*', 'https://kuih-lapis-v2-x-project-alesia.onrender.com/*'],
     // Needed so the toolbar icon exists and can open the side panel (no popup).
     action: { default_title: 'Open Project Alesia' },
   },

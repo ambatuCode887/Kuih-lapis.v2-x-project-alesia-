@@ -8,7 +8,7 @@ import { splitDataUrl } from './images';
  */
 const USE_BACKEND = true;
 
-const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8000';
+const DEFAULT_BACKEND_URL = 'https://kuih-lapis-v2-x-project-alesia.onrender.com';
 const APP_NAME = 'agents';
 const USER_ID = 'extension-user';
 const SESSION_KEY = 'session-id';
