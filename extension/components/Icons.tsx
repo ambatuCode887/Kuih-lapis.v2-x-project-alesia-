@@ -119,13 +119,6 @@ export const AlertIcon = (props: IconProps) => (
   </Base>
 );
 
-export const SpeakerIcon = (props: IconProps) => (
-  <Base {...props}>
-    <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4z" />
-    <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
-  </Base>
-);
-
 export const SunIcon = (props: IconProps) => (
   <Base {...props}>
     <circle cx="12" cy="12" r="4" />

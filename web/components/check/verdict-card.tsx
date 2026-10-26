@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
-import { Check, CircleQuestionMark, ShieldCheck, Square, TriangleAlert, Volume2 } from "lucide-react";
+import { type CSSProperties } from "react";
+import { Check, CircleQuestionMark, ShieldCheck, TriangleAlert } from "lucide-react";
 import {
   highlightSegments,
   riskBand,
@@ -93,32 +93,6 @@ export function VerdictCard({ assessment, sourceText }: VerdictCardProps) {
   const segments = sourceText ? highlightSegments(sourceText, indicators) : [];
   const marked = new Set(segments.flatMap((s) => (s.mark ? [s.mark] : [])));
   const urgent = (assessment.risk_score ?? 0) >= 50;
-  const [speaking, setSpeaking] = useState(false);
-
-  // Stop talking if the card goes away.
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
-
-  function toggleSpeech() {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    if (speaking) {
-      synth.cancel();
-      setSpeaking(false);
-      return;
-    }
-    const spoken = [
-      `${headline.title}.`,
-      headline.sub,
-      steps.length ? `What to do. ${steps.join(" ")}` : "",
-    ].join(" ");
-    const utterance = new SpeechSynthesisUtterance(spoken);
-    utterance.rate = 0.9;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    synth.cancel();
-    synth.speak(utterance);
-    setSpeaking(true);
-  }
 
   return (
     <article
@@ -189,18 +163,6 @@ export function VerdictCard({ assessment, sourceText }: VerdictCardProps) {
             <strong className="text-2xl">997</strong>.
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={toggleSpeech}
-          aria-pressed={speaking}
-          className={`flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full border-2 border-jade px-5 text-lg font-bold transition-colors ${
-            speaking ? "bg-jade text-on-jade" : "text-jade-text hover:bg-jade hover:text-on-jade"
-          }`}
-        >
-          {speaking ? <Square aria-hidden size={18} /> : <Volume2 aria-hidden size={20} />}
-          {speaking ? "Stop reading" : "Read aloud"}
-        </button>
 
         <details className="group rounded-2xl border border-line-strong/50">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-lg font-semibold [&::-webkit-details-marker]:hidden">

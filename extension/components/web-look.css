@@ -1850,7 +1850,7 @@ body {
   padding: 0 14px;
 }
 
-/* ───────── Verdict card (where Read aloud sits): no multicolour gradient border ─────────
+/* ───────── Verdict card: no multicolour gradient border ─────────
    A plain solid border in the verdict's own colour, with no moving light. */
 .slip {
   border: 2px solid color-mix(in srgb, var(--band, var(--pine)) 60%, var(--line-strong));

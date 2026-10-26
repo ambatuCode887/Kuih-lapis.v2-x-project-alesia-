@@ -273,16 +273,14 @@
 /* Colour shifts on the other controls too. */
 .rail-item,
 .attach,
-.details > summary,
-.reply-more summary {
+.details > summary {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 .rail-item:hover {
   background: color-mix(in srgb, var(--pine) 14%, transparent);
 }
 .attach:hover,
-.details > summary:hover,
-.reply-more summary:hover {
+.details > summary:hover {
   background: color-mix(in srgb, var(--pine) 12%, var(--card));
   border-color: var(--pine-text, var(--pine));
 }

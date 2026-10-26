@@ -497,18 +497,9 @@ export function Checker() {
                     sourceText={shown.entry.sourceText}
                   />
                   {shown.entry.text && (
-                    <details className="glass group rounded-3xl">
-                      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 text-lg font-semibold [&::-webkit-details-marker]:hidden">
-                        Read the full explanation
-                        <span
-                          aria-hidden
-                          className="size-2.5 rotate-45 border-b-2 border-r-2 border-ink-2 transition-transform group-open:-rotate-[135deg]"
-                        />
-                      </summary>
-                      <div className="space-y-3 px-5 pb-5 text-lg [&_a]:text-jade-text [&_a]:underline [&_li]:ml-5 [&_li]:list-disc">
-                        <Markdown>{shown.entry.text}</Markdown>
-                      </div>
-                    </details>
+                    <div className="glass space-y-3 rounded-3xl p-5 text-lg sm:p-6 [&_a]:text-jade-text [&_a]:underline [&_li]:ml-5 [&_li]:list-disc">
+                      <Markdown>{shown.entry.text}</Markdown>
+                    </div>
                   )}
                 </>
               ) : (

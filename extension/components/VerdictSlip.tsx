@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
 import {
   highlightSegments,
   riskBand,
   type Assessment,
   type BandKey,
 } from '@/lib/assessment';
-import { AlertIcon, QuestionIcon, ShieldCheckIcon, SpeakerIcon } from './Icons';
+import { AlertIcon, QuestionIcon, ShieldCheckIcon } from './Icons';
 
 const SCALE: { key: BandKey; label: string }[] = [
   { key: 'low', label: 'Low' },
@@ -88,32 +87,6 @@ export default function VerdictSlip({ assessment, sourceText }: VerdictSlipProps
   const segments = sourceText ? highlightSegments(sourceText, indicators) : [];
   const markedNumbers = new Set(segments.flatMap((s) => (s.mark ? [s.mark] : [])));
   const urgent = (assessment.risk_score ?? 0) >= 50;
-  const [speaking, setSpeaking] = useState(false);
-
-  // Stop talking if the card goes away.
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
-
-  function toggleSpeech() {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    if (speaking) {
-      synth.cancel();
-      setSpeaking(false);
-      return;
-    }
-    const spoken = [
-      headline.title + '.',
-      headline.sub,
-      steps.length ? 'What to do. ' + steps.join(' ') : '',
-    ].join(' ');
-    const utterance = new SpeechSynthesisUtterance(spoken);
-    utterance.rate = 0.9;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    synth.cancel();
-    synth.speak(utterance);
-    setSpeaking(true);
-  }
 
   return (
     <article className={`slip slip-${band.key}`} style={{ ['--band' as string]: band.color }}>
@@ -144,16 +117,6 @@ export default function VerdictSlip({ assessment, sourceText }: VerdictSlipProps
           <strong className="urgent-number">997</strong>.
         </div>
       )}
-
-      <button
-        type="button"
-        className={`read-aloud${speaking ? ' is-on' : ''}`}
-        onClick={toggleSpeech}
-        aria-pressed={speaking}
-      >
-        <SpeakerIcon width={22} height={22} />
-        {speaking ? 'Stop reading' : 'Read aloud'}
-      </button>
 
       <details className="details">
         <summary>Show details</summary>

@@ -1002,12 +1002,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                 ) : message.isError ? (
                   <div className="reply reply-error">{message.text}</div>
                 ) : message.assessment ? (
-                  <details className="reply-more">
-                    <summary>Read the full explanation</summary>
-                    <div className="reply">
-                      <Markdown>{message.text}</Markdown>
-                    </div>
-                  </details>
+                  <div className="reply expanded-explanation">
+                    <Markdown>{message.text}</Markdown>
+                  </div>
                 ) : (
                   <div className="reply">
                     <Markdown>{message.text}</Markdown>

@@ -163,7 +163,6 @@ a:focus-visible {
   height: 9px;
 }
 
-.reply-more summary,
 .details > summary {
   display: flex;
   align-items: center;
@@ -181,12 +180,10 @@ a:focus-visible {
   cursor: pointer;
 }
 
-.reply-more summary::-webkit-details-marker,
 .details > summary::-webkit-details-marker {
   display: none;
 }
 
-.reply-more summary::after,
 .details > summary::after {
   content: '';
   width: 9px;
@@ -197,13 +194,16 @@ a:focus-visible {
   transition: transform 0.15s;
 }
 
-.reply-more[open] > summary::after,
 .details[open] > summary::after {
   transform: rotate(-135deg);
 }
 
-.reply-more .reply {
-  padding-top: 12px;
+.expanded-explanation {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
 }
 
 .notice {
@@ -353,29 +353,6 @@ a:focus-visible {
   font-weight: 800;
 }
 
-.read-aloud {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 52px;
-  margin-top: 18px;
-  background: transparent;
-  color: var(--pine-text, var(--pine));
-  border: 2px solid var(--pine);
-  border-radius: 12px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.read-aloud:hover,
-.read-aloud.is-on {
-  background: var(--pine);
-  color: var(--pine-ink);
-}
-
 .details {
   margin-top: 14px;
 }
@@ -450,8 +427,7 @@ a:focus-visible {
   font-weight: 600;
 }
 
-.details > summary,
-.reply-more summary {
+.details > summary {
   border-color: var(--line-strong);
 }
 
