@@ -3,6 +3,7 @@ from agents.session_memory import (
     MAX_MEMORY_TEXT,
     format_memory,
     get_session_memory,
+    has_prior_attachment_context,
     remember_turn,
 )
 
@@ -40,3 +41,10 @@ def test_relevant_memory_can_recover_an_older_check() -> None:
 
     assert "DHL delivery fee message" in formatted
     assert "phishing indicators" in formatted
+
+
+def test_attachment_context_is_available_for_follow_up_routing() -> None:
+    state = {}
+    remember_turn(state, "Is this a scam?", "Attachment 1 shows a fake DHL notice.")
+
+    assert has_prior_attachment_context(state)

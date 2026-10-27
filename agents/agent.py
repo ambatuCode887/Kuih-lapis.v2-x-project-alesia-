@@ -19,7 +19,12 @@ from agents.guards import _attachment_prompt_injection_notice, _requests_private
 from agents.integrity import verify_agent_definitions
 from agents.model_failover import LlmFailoverExhaustedError
 from agents.root_prompt import _ROOT_INSTRUCTION
-from agents.session_memory import format_memory, get_session_memory, remember_turn
+from agents.session_memory import (
+    format_memory,
+    get_session_memory,
+    has_prior_attachment_context,
+    remember_turn,
+)
 # Re-exported so existing imports from agents.agent keep working.
 from agents.routing import (
     _GIBBERISH_REPLY,
@@ -400,6 +405,26 @@ class RequestRouter(Agent):
             attachment_present=attachment_present,
             user_request=user_request,
         )
+        if (
+            not attachment_present
+            and has_prior_attachment_context(ctx.session.state)
+            and any(
+                term in user_request.casefold()
+                for term in (
+                    "this image",
+                    "the image",
+                    "that image",
+                    "this screenshot",
+                    "the screenshot",
+                    "the attachment",
+                    "this attachment",
+                    "first check",
+                    "previous check",
+                    "earlier check",
+                )
+            )
+        ):
+            target_name = "message_agent"
         qr_hosts = qr_link_hosts(qr_payloads)
         if qr_hosts:
             target_name = "message_agent"

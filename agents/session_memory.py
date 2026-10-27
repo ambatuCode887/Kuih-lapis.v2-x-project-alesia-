@@ -27,6 +27,15 @@ def get_session_memory(state: dict[str, Any]) -> list[dict[str, str]]:
     ][-MAX_MEMORY_TURNS:]
 
 
+def has_prior_attachment_context(state: dict[str, Any]) -> bool:
+    """Whether this session contains an earlier attachment-based assessment."""
+    for item in get_session_memory(state):
+        text = f"{item['user']}\n{item['assistant']}".casefold()
+        if "attachment" in text or "screenshot" in text or "image" in text:
+            return True
+    return False
+
+
 def remember_turn(state: dict[str, Any], user: str, assistant: str) -> None:
     memory = get_session_memory(state)
     memory.append({"user": _clip(user), "assistant": _clip(assistant)})
