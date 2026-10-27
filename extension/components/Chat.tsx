@@ -16,6 +16,7 @@ import {
   isAbortError,
   isLlmUnavailableError,
   startNewSession,
+  switchSession,
 } from "@/lib/api";
 import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
@@ -772,6 +773,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                             setActiveSessionId(session.id);
                             setMessages(session.messages);
                             setFocusId(null);
+                            void switchSession(session.id);
                           }
                         }}
                       >
@@ -793,6 +795,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
                                   if (session.id !== activeSessionId) {
                                     setActiveSessionId(session.id);
                                     setMessages(session.messages);
+                                    void switchSession(session.id);
                                   }
                                   setFocusId(item.id);
                                 }}

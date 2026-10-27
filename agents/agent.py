@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import AsyncGenerator
 
 from google.genai import types
@@ -79,6 +80,22 @@ def _status_event(author: str, invocation_id: str, status: str) -> Event:
 
 def _joined_text(parts: list[types.Part] | None, separator: str = "\n") -> str:
     return separator.join(part.text for part in parts or [] if part.text)
+
+
+def _clean_user_response(text: str) -> str:
+    text = re.sub(r"(?im)^\s*Sources?:.*(?:\r?\n|$)", "", text)
+    text = re.sub(
+        r"(?is)\(?\s*(?:Note:\s*)?The above definition is a general answer "
+        r"that is not from the knowledge base and is not verified\.?\s*\)?",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?im)^\s*General answer that is not from the knowledge base and is not verified:?\s*",
+        "",
+        text,
+    )
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 def _hide_specialist_text(event: Event) -> None:
@@ -496,6 +513,9 @@ class RequestRouter(Agent):
         try:
             async for event in super()._run_async_impl(ctx):
                 if event.author == self.name and event.is_final_response() and event.content:
+                    for part in event.content.parts or []:
+                        if part.text:
+                            part.text = _clean_user_response(part.text)
                     root_answer_returned = any(
                         part.text and part.text.strip()
                         for part in event.content.parts or []
@@ -514,7 +534,9 @@ class RequestRouter(Agent):
                     role="model",
                     parts=[
                         types.Part(
-                            text=_fallback_root_response(target_name, initial_report)
+                            text=_clean_user_response(
+                                _fallback_root_response(target_name, initial_report)
+                            )
                         )
                     ],
                 ),
