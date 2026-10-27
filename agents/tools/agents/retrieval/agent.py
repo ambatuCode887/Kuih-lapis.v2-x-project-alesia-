@@ -29,11 +29,33 @@ _QA_RECORD = re.compile(
     r"\s*Question:\s*(?P<question>.*?)\s*\nAnswer:\s*(?P<answer>.*?)\s*\Z",
     re.IGNORECASE | re.DOTALL,
 )
+_QUERY_STOPWORDS = {
+    "a", "an", "and", "are", "can", "does", "how", "is", "it", "of",
+    "the", "what", "when", "where", "which", "who", "why", "with",
+}
+_GENERIC_QUERY_TERMS = {"attack", "attacks", "hacker", "hackers", "security", "threat"}
 
 
 def _session_state(ctx: InvocationContext) -> dict:
     state = getattr(getattr(ctx, "session", None), "state", None)
     return state if state is not None else {}
+
+
+def _retrieval_matches_query(query: str, results: list[dict]) -> bool:
+    """Reject topically unrelated vector hits before composing a knowledge answer."""
+    terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.casefold())
+        if (
+            len(term) >= 3
+            and term not in _QUERY_STOPWORDS
+            and term not in _GENERIC_QUERY_TERMS
+        )
+    }
+    if not terms:
+        return bool(results)
+    evidence = " ".join(str(result.get("text", "")) for result in results).casefold()
+    return any(term in evidence for term in terms)
 
 
 async def generate_model_answer(question: str) -> str:
@@ -141,7 +163,7 @@ class RetrievalAgent(BaseAgent):
             else:
                 results = retrieval.get("results", [])
                 followups = _cached_followups(results, query)
-                if not results:
+                if not _retrieval_matches_query(query, results):
                     report = await _knowledge_miss_report(query)
                 else:
                     passages = [format_passage(index, result) for index, result in enumerate(results, start=1)]
