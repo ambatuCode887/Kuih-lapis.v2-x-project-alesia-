@@ -18,6 +18,7 @@ from agents.guards import _attachment_prompt_injection_notice, _requests_private
 from agents.integrity import verify_agent_definitions
 from agents.model_failover import LlmFailoverExhaustedError
 from agents.root_prompt import _ROOT_INSTRUCTION
+from agents.session_memory import format_memory, get_session_memory, remember_turn
 # Re-exported so existing imports from agents.agent keep working.
 from agents.routing import (
     _GIBBERISH_REPLY,
@@ -337,6 +338,7 @@ class RequestRouter(Agent):
             ctx.session.state.get("cached_followups", []),
         )
         if cached_response:
+            remember_turn(ctx.session.state, user_request, cached_response)
             yield _status_event(self.name, ctx.invocation_id, "Retrieving data\u2026")
             await asyncio.sleep(_CACHED_FOLLOWUP_DELAY_SECONDS)
             yield Event(
@@ -361,6 +363,7 @@ class RequestRouter(Agent):
                     custom_metadata={"kind": "domain_stats", "domain": download_domain, **counts},
                 )
             assessment = download_assessment(download_domain, counts)
+            remember_turn(ctx.session.state, user_request, assessment["assessment"])
             yield Event(
                 author="url_check_agent",
                 invocation_id=ctx.invocation_id,
@@ -417,6 +420,16 @@ class RequestRouter(Agent):
                     invocation_id=ctx.invocation_id,
                     custom_metadata={"kind": "domain_stats", "domain": domain, **counts},
                 )
+
+        prior_context = format_memory(
+            get_session_memory(ctx.session.state), user_request
+        )
+        if prior_context:
+            content = types.Content(
+                role="user",
+                parts=[*(content.parts or []), types.Part(text=prior_context)],
+            )
+            ctx.user_content = content
 
         initial_report = ""
         try:
@@ -477,6 +490,7 @@ class RequestRouter(Agent):
             )
 
         ctx.session.state["root_specialist_report"] = final_report
+        remember_turn(ctx.session.state, user_request, final_report)
         yield _status_event(self.name, ctx.invocation_id, "Generating a response\u2026")
         root_answer_returned = False
         try:

@@ -12,9 +12,10 @@ import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource/ibm-plex-mono/400.css";
 import {
   askAgent,
+  getSessionId,
   isAbortError,
   isLlmUnavailableError,
-  resetSession,
+  startNewSession,
 } from "@/lib/api";
 import { parseAssessment, riskBand, type Assessment } from "@/lib/assessment";
 import { MAX_IMAGES, isImageFile, prepareImage } from "@/lib/images";
@@ -35,8 +36,6 @@ import {
   MessageIcon,
   MicIcon,
   PaperclipIcon,
-  PencilIcon,
-  TrashIcon,
   PlusIcon,
   PlusButtonIcon,
   QuestionIcon,
@@ -75,13 +74,17 @@ export interface Message {
 }
 
 const STORAGE_KEY = "chat-messages";
-// "New check" does not delete anything. It remembers the last message that was on screen,
-// and only messages after it are shown. The full log stays, so Recent checks keeps its history.
-const VIEW_AFTER_KEY = "chat-view-after";
+const SESSIONS_KEY = "chat-sessions-v1";
 // Keep the saved log from growing forever (screenshots are large).
 const MAX_SAVED_MESSAGES = 200;
 // Written by the right-click menu in background.ts; consumed here.
 const PENDING_KEY = "pending-check";
+
+interface ChatSession {
+  id: string;
+  createdAt: number;
+  messages: Message[];
+}
 
 function normalizeMessages(messages: Message[]): Message[] {
   return messages.map((message) => ({
@@ -207,6 +210,8 @@ interface ChatProps {
 
 export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [greeting, setGreeting] = useState(pickGreeting);
   const [input, setInput] = useState("");
   const suggestions = matchSuggestions(input);
@@ -239,15 +244,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
   const [status, setStatus] = useState("");
   const [loaded, setLoaded] = useState(false);
-  // id of the last message hidden by "New check"; null means show everything.
-  const [viewAfter, setViewAfter] = useState<string | null>(null);
-  // Renaming and deleting single checks in the sidebar.
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const renameSkip = useRef(false);
   // id of an earlier check opened from Recent checks, shown on its own.
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const { theme, chooseTheme } = useTheme();
   // The latest awareness reminder. It stays until the user dismisses it.
@@ -298,30 +297,54 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     void browser.storage.local.remove(REMINDER_TIP_KEY);
   }
 
-  // Load saved history, and keep both views (panel and tab) in sync.
+  // Load session-scoped history, migrating the pre-session message log once.
   useEffect(() => {
-    browser.storage.local.get([STORAGE_KEY, VIEW_AFTER_KEY]).then((result) => {
-      const savedView = result[VIEW_AFTER_KEY];
-      if (typeof savedView === "string") setViewAfter(savedView);
+    Promise.all([
+      browser.storage.local.get([SESSIONS_KEY, STORAGE_KEY]),
+      getSessionId(),
+    ]).then(([result, currentId]) => {
+      const savedSessions = result[SESSIONS_KEY] as ChatSession[] | undefined;
       const saved = result[STORAGE_KEY] as Message[] | undefined;
-      // Drop the old welcome bubble that earlier versions saved.
-      const history = saved?.filter((message) => message.id !== "welcome");
-      if (history?.length) setMessages(normalizeMessages(history));
+      const migrated = saved
+        ? normalizeMessages(saved.filter((message) => message.id !== "welcome"))
+        : [];
+      const validSessions = Array.isArray(savedSessions)
+        ? savedSessions.filter((session) => session?.id && Array.isArray(session.messages))
+        : [];
+      const nextSessions =
+        validSessions.length > 0
+          ? validSessions.map((session) => ({
+              ...session,
+              messages: normalizeMessages(session.messages),
+            }))
+          : [
+              {
+                id: currentId,
+                createdAt: Date.now(),
+                messages: migrated ?? [],
+              },
+            ];
+      const active =
+        nextSessions.find((session) => session.id === currentId) ??
+        nextSessions[nextSessions.length - 1]!;
+      setSessions(nextSessions);
+      setActiveSessionId(active.id);
+      setMessages(active.messages);
+      setExpandedSessionId(active.id);
       setLoaded(true);
+      void browser.storage.local.set({ [SESSIONS_KEY]: nextSessions });
     });
 
     const onChange = (
       changes: Record<string, { newValue?: unknown }>,
       area: string,
     ) => {
-      if (area === "local" && changes[STORAGE_KEY]?.newValue) {
-        setMessages(
-          normalizeMessages(changes[STORAGE_KEY].newValue as Message[]),
-        );
-      }
-      if (area === "local" && VIEW_AFTER_KEY in changes) {
-        const next = changes[VIEW_AFTER_KEY]?.newValue;
-        setViewAfter(typeof next === "string" ? next : null);
+      if (area === "local" && changes[SESSIONS_KEY]?.newValue) {
+        const next = changes[SESSIONS_KEY].newValue as ChatSession[] | undefined;
+        if (Array.isArray(next)) setSessions(next.map((session) => ({
+          ...session,
+          messages: normalizeMessages(session.messages),
+        })));
       }
     };
     browser.storage.onChanged.addListener(onChange);
@@ -329,14 +352,17 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
   }, []);
 
   useEffect(() => {
-    if (loaded) {
-      browser.storage.local
-        .set({ [STORAGE_KEY]: messages.slice(-MAX_SAVED_MESSAGES) })
-        .catch(() => {
-          showNotice("Chat history could not be saved.");
-        });
-    }
-  }, [messages, loaded]);
+    if (!loaded || !activeSessionId) return;
+    const nextSessions = sessions.map((session) =>
+      session.id === activeSessionId
+        ? { ...session, messages: messages.slice(-MAX_SAVED_MESSAGES) }
+        : session,
+    );
+    setSessions(nextSessions);
+    browser.storage.local.set({ [SESSIONS_KEY]: nextSessions }).catch(() => {
+      showNotice("Chat history could not be saved.");
+    });
+  }, [messages, loaded, activeSessionId]);
 
   // Handle "Check with Project Alesia" from the right-click menu.
   useEffect(() => {
@@ -542,90 +568,36 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     // A check that is still running belongs to the old session, so stop it first.
     if (abortRef.current) discardStopRef.current = true;
     abortRef.current?.abort();
-    // Start a fresh screen but keep the saved log, so Recent checks is not lost.
-    const lastId = messages.at(-1)?.id ?? null;
-    setViewAfter(lastId);
-    if (lastId) browser.storage.local.set({ [VIEW_AFTER_KEY]: lastId });
     setFocusId(null);
     setInput("");
     setAttachments([]);
     setGreeting(pickGreeting());
-    // Forget the backend session: the next prompt opens a brand-new one with no memory
-    // of the earlier conversation.
-    void resetSession();
+    const newId = crypto.randomUUID();
+    const nextSessions = [
+      ...sessions,
+      { id: newId, createdAt: Date.now(), messages: [] },
+    ];
+    setSessions(nextSessions);
+    setActiveSessionId(newId);
+    setMessages([]);
+    setExpandedSessionId(newId);
+    void startNewSession(newId);
+    void browser.storage.local.set({ [SESSIONS_KEY]: nextSessions });
     inputRef.current?.focus();
   }
 
   /** The only way to delete history: a deliberate, confirmed action. */
   function clearHistory() {
     setMessages([]);
-    setViewAfter(null);
     setFocusId(null);
     setConfirmClear(false);
-    browser.storage.local.remove(VIEW_AFTER_KEY);
-    resetSession();
-  }
-
-  function startRename(id: string, current: string) {
-    renameSkip.current = false;
-    setConfirmDeleteId(null);
-    setRenameDraft(current);
-    setRenamingId(id);
-  }
-
-  /** Save the new name. An empty name goes back to the automatic one. */
-  function commitRename() {
-    if (renameSkip.current) {
-      renameSkip.current = false;
-      return;
-    }
-    const id = renamingId;
-    if (!id) return;
-    const name = renameDraft.trim().slice(0, 80);
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === id ? { ...message, title: name || undefined } : message,
-      ),
-    );
-    setRenamingId(null);
-  }
-
-  /** Remove one check (the question and its answer). The other checks are untouched. */
-  function deleteCheck(id: string) {
-    const index = messages.findIndex((message) => message.id === id);
-    if (index === -1) return;
-    if (loading && index >= messages.length - 2) {
-      showNotice("Stop the running check first, then delete it.");
-      setConfirmDeleteId(null);
-      return;
-    }
-    const removed = new Set([id]);
-    const reply = messages[index + 1];
-    if (reply?.role === "assistant") removed.add(reply.id);
-
-    // If the screen was cut off at one of the removed messages, cut it off just before them.
-    if (viewAfter && removed.has(viewAfter)) {
-      const before = messages.slice(0, index).at(-1)?.id ?? null;
-      setViewAfter(before);
-      if (before) browser.storage.local.set({ [VIEW_AFTER_KEY]: before });
-      else browser.storage.local.remove(VIEW_AFTER_KEY);
-    }
-    if (focusId && removed.has(focusId)) setFocusId(null);
-    setMessages((current) =>
-      current.filter((message) => !removed.has(message.id)),
-    );
-    setConfirmDeleteId(null);
-  }
-
-  function openPastCheck(id: string) {
-    const onScreen = visible.some((message) => message.id === id);
-    if (onScreen && !focusId) {
-      document
-        .getElementById(`msg-${id}`)
-        ?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      setFocusId(id);
-    }
+    const freshId = crypto.randomUUID();
+    const nextSessions = [{ id: freshId, createdAt: Date.now(), messages: [] }];
+    setSessions(nextSessions);
+    setActiveSessionId(freshId);
+    setExpandedSessionId(freshId);
+    void startNewSession(freshId);
+    void browser.storage.local.set({ [SESSIONS_KEY]: nextSessions });
   }
 
   function applyQuickAction(action: QuickAction) {
@@ -648,7 +620,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
     field.style.height = `${Math.min(field.scrollHeight, 220)}px`;
   }, [input]);
 
-  // What is on screen: one earlier check on its own, or the messages since "New check".
+  // What is on screen: one earlier check on its own, or the active session.
   const visible = (() => {
     if (focusId) {
       const start = messages.findIndex((message) => message.id === focusId);
@@ -659,39 +631,45 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           : [messages[start]!];
       }
     }
-    if (viewAfter) {
-      const hidden = messages.findIndex((message) => message.id === viewAfter);
-      if (hidden >= 0) return messages.slice(hidden + 1);
-    }
     return messages;
   })();
 
   const isEmpty = visible.length === 0;
 
-  // Recent checks for the sidebar: one entry per question the user sent, whether or not
-  // the reply came with a risk score. (Only scored replies used to be listed, so plain
-  // security questions never appeared.)
-  const history = messages.flatMap((message, index) => {
-    if (message.role !== "user") return [];
-    const reply = messages[index + 1];
-    const assessment =
-      reply?.role === "assistant" ? reply.assessment : undefined;
-    const typed = message.text.trim();
-    const title =
-      (typed && extractSource(typed)) ||
-      typed ||
-      (message.images?.length ? "Screenshot" : "Check");
-    return [
-      {
-        id: message.id,
-        score: assessment ? assessment.risk_score : null,
-        band: assessment
-          ? riskBand(assessment.risk_level, assessment.risk_score)
-          : null,
-        title: message.title?.trim() || title,
-      },
-    ];
-  });
+  const sessionRows = [...sessions]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((session) => {
+      const sessionMessages =
+        session.id === activeSessionId ? messages : session.messages;
+      const checks = sessionMessages.flatMap((message, index) => {
+        if (message.role !== "user") return [];
+        const reply = sessionMessages[index + 1];
+        const assessment =
+          reply?.role === "assistant" ? reply.assessment : undefined;
+        const typed = message.text.trim();
+        return [{
+          id: message.id,
+          score: assessment ? assessment.risk_score : null,
+          band: assessment
+            ? riskBand(assessment.risk_level, assessment.risk_score)
+            : null,
+          title:
+            message.title?.trim() ||
+            (typed && extractSource(typed)) ||
+            typed ||
+            (message.images?.length ? "Screenshot" : "Check"),
+        }];
+      });
+      const firstQuestion = sessionMessages.find((message) => message.role === "user");
+      return {
+        ...session,
+        messages: sessionMessages,
+        checks,
+        title: firstQuestion?.text.trim()
+          ? (extractSource(firstQuestion.text) || firstQuestion.text).slice(0, 42)
+          : "New session",
+      };
+    });
 
   return (
     <div className={`app app-${layout}`}>
@@ -734,7 +712,7 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
       {(layout === "tab" || layout === "panel") && (
         <aside
           className={`rail${railMin ? " rail--min" : ""}`}
-          aria-label="Recent checks"
+          aria-label="Chat sessions"
         >
           <div className="rail-head">
             <div className="brand">
@@ -748,9 +726,9 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
               aria-expanded={!railMin}
               aria-controls="rail-body"
               aria-label={
-                railMin ? "Show recent checks" : "Minimise recent checks"
+                railMin ? "Show sessions" : "Minimise sessions"
               }
-              title={railMin ? "Show recent checks" : "Minimise"}
+              title={railMin ? "Show sessions" : "Minimise"}
             >
               <ChevronsLeftIcon
                 width={20}
@@ -775,111 +753,71 @@ export default function Chat({ layout = "panel", onExpand }: ChatProps) {
           </button>
           <div id="rail-body" className="rail-body" inert={railMin}>
             <div className="rail-body-inner">
-              <h2 className="rail-title">Recent checks</h2>
-              {history.length === 0 ? (
-                <p className="rail-empty">Checks you run appear here.</p>
+              <h2 className="rail-title">Sessions</h2>
+              {sessionRows.length === 0 ? (
+                <p className="rail-empty">New sessions you start appear here.</p>
               ) : (
                 <ul className="rail-list">
-                  {[...history].reverse().map((item) => (
-                    <li key={item.id} className="rail-row">
-                      {renamingId === item.id ? (
-                        <input
-                          className="rail-rename"
-                          value={renameDraft}
-                          maxLength={80}
-                          autoFocus
-                          aria-label="Rename this check"
-                          onChange={(event) =>
-                            setRenameDraft(event.target.value)
+                  {sessionRows.map((session) => (
+                    <li key={session.id} className="rail-session">
+                      <button
+                        type="button"
+                        className={`rail-session-button${session.id === activeSessionId ? " is-active" : ""}`}
+                        aria-expanded={expandedSessionId === session.id}
+                        onClick={() => {
+                          setExpandedSessionId((current) =>
+                            current === session.id ? null : session.id,
+                          );
+                          if (session.id !== activeSessionId) {
+                            setActiveSessionId(session.id);
+                            setMessages(session.messages);
+                            setFocusId(null);
                           }
-                          onFocus={(event) => event.target.select()}
-                          onBlur={commitRename}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              commitRename();
-                            } else if (event.key === "Escape") {
-                              renameSkip.current = true;
-                              setRenamingId(null);
-                            }
-                          }}
-                        />
-                      ) : confirmDeleteId === item.id ? (
-                        <div
-                          className="rail-confirm-row"
-                          role="group"
-                          aria-label="Confirm delete"
-                        >
-                          <span>Delete this check?</span>
-                          <button
-                            type="button"
-                            className="rail-danger"
-                            onClick={() => deleteCheck(item.id)}
-                          >
-                            Delete
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => setConfirmDeleteId(null)}
-                          >
-                            Keep
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="rail-item"
-                            aria-current={
-                              focusId === item.id ? "true" : undefined
-                            }
-                            onClick={() => openPastCheck(item.id)}
-                          >
-                            {item.band ? (
-                              <span className={`chip chip-${item.band.key}`}>
-                                {item.score ?? "–"}
-                              </span>
-                            ) : (
-                              <span
-                                className="chip chip-question"
-                                title="Question"
+                        }}
+                      >
+                        <span className="rail-session-chevron">
+                          {expandedSessionId === session.id ? "▾" : "▸"}
+                        </span>
+                        <span className="rail-session-title">{session.title}</span>
+                        <span className="rail-session-count">{session.checks.length}</span>
+                      </button>
+                      {expandedSessionId === session.id && (
+                        <ul className="rail-session-checks">
+                          {session.checks.map((item) => (
+                            <li key={item.id} className="rail-row">
+                              <button
+                                type="button"
+                                className="rail-item"
+                                aria-current={focusId === item.id ? "true" : undefined}
+                                onClick={() => {
+                                  if (session.id !== activeSessionId) {
+                                    setActiveSessionId(session.id);
+                                    setMessages(session.messages);
+                                  }
+                                  setFocusId(item.id);
+                                }}
                               >
-                                Q
-                              </span>
-                            )}
-                            <span className="rail-item-text">{item.title}</span>
-                          </button>
-                          <div className="rail-actions">
-                            <button
-                              type="button"
-                              className="rail-act"
-                              aria-label={`Rename ${item.title}`}
-                              title="Rename"
-                              onClick={() => startRename(item.id, item.title)}
-                            >
-                              <PencilIcon width={16} height={16} />
-                            </button>
-                            <button
-                              type="button"
-                              className="rail-act"
-                              aria-label={`Delete ${item.title}`}
-                              title="Delete"
-                              onClick={() => {
-                                setRenamingId(null);
-                                setConfirmDeleteId(item.id);
-                              }}
-                            >
-                              <TrashIcon width={16} height={16} />
-                            </button>
-                          </div>
-                        </>
+                                {item.band ? (
+                                  <span className={`chip chip-${item.band.key}`}>
+                                    {item.score ?? "–"}
+                                  </span>
+                                ) : (
+                                  <span className="chip chip-question" title="Question">Q</span>
+                                )}
+                                <span className="rail-item-text">{item.title}</span>
+                              </button>
+                            </li>
+                          ))}
+                          {session.checks.length === 0 && (
+                            <li className="rail-session-empty">No checks yet</li>
+                          )}
+                        </ul>
                       )}
                     </li>
                   ))}
                 </ul>
               )}
-              {history.length > 0 &&
+              {sessionRows.length > 0 &&
                 (confirmClear ? (
                   <div
                     className="rail-confirm"

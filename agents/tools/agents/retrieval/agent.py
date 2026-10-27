@@ -12,6 +12,7 @@ from google.adk.models.llm_request import LlmRequest
 from agents.config import agent_model
 from agents.model_failover import LlmFailoverExhaustedError
 from agents.scope import OUT_OF_SCOPE_REPLY, SCOPE_RULES
+from agents.session_memory import PRIOR_CONTEXT_CLOSE, PRIOR_CONTEXT_OPEN
 from agents.tools.functions.retrieve.credential_stuffing import format_passage, retrieve_knowledge
 from agents.tools.functions.unanswered_log import append_unanswered
 
@@ -55,7 +56,7 @@ async def generate_model_answer(question: str) -> str:
 
 
 async def _knowledge_miss_report(question: str) -> str:
-    report = "No relevant context was found in the knowledge base."
+    report = "I don't have enough information to answer that reliably right now."
     try:
         answer = await generate_model_answer(question)
     except LlmFailoverExhaustedError:
@@ -76,7 +77,7 @@ async def _knowledge_miss_report(question: str) -> str:
 
     if not answer:
         return report
-    return f"{report}\nModel answer (not from the knowledge base, unverified):\n{answer}"
+    return answer
 
 
 def _cached_followups(results: list[dict], query: str) -> list[dict[str, str]]:
@@ -116,6 +117,8 @@ class RetrievalAgent(BaseAgent):
             if part.text
             and "[BEGIN UNTRUSTED ATTACHMENT DATA" not in part.text
             and "[Extracted attachment text;" not in part.text
+            and PRIOR_CONTEXT_OPEN not in part.text
+            and PRIOR_CONTEXT_CLOSE not in part.text
         ).strip()
         state = _session_state(ctx)
         memory = list(state.get("knowledge_memory") or [])

@@ -42,8 +42,8 @@ def test_knowledge_miss_returns_labelled_model_answer_and_logs_row(monkeypatch, 
     events = _run_miss("What is MFA?")
     text = events[0].content.parts[0].text
 
-    assert "No relevant context was found in the knowledge base." in text
-    assert "Model answer (not from the knowledge base, unverified):" in text
+    assert "I couldn't find a matching answer in the available knowledge sources." not in text
+    assert "Model answer (not from the knowledge base, unverified):" not in text
     assert "second check to a login" in text
     rows = _rows(log_path)
     assert len(rows) == 1
@@ -68,7 +68,7 @@ def test_model_failure_still_logs_question_without_answer(monkeypatch, tmp_path)
     events = _run_miss("What is a honeypot?")
     text = events[0].content.parts[0].text
 
-    assert text == "No relevant context was found in the knowledge base."
+    assert text == "I don't have enough information to answer that reliably right now."
     rows = _rows(log_path)
     assert rows[0]["question"] == "What is a honeypot?"
     assert rows[0]["model_answer"] == ""

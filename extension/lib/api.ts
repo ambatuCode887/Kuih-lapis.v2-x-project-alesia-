@@ -150,6 +150,22 @@ async function ensureSession(base: string): Promise<string> {
   return sessionId;
 }
 
+/** Return the active conversation ID, creating a local ID before the first request. */
+export async function getSessionId(): Promise<string> {
+  const stored = await browser.storage.local.get(SESSION_KEY);
+  const existing = stored[SESSION_KEY] as string | undefined;
+  if (existing) return existing;
+  const sessionId = crypto.randomUUID();
+  await browser.storage.local.set({ [SESSION_KEY]: sessionId });
+  return sessionId;
+}
+
+/** Start a new backend conversation boundary. The server session is created lazily. */
+export async function startNewSession(sessionId = crypto.randomUUID()): Promise<string> {
+  await browser.storage.local.set({ [SESSION_KEY]: sessionId });
+  return sessionId;
+}
+
 /** Forget the session so the next message starts a fresh conversation. */
 export async function resetSession(): Promise<void> {
   await browser.storage.local.remove(SESSION_KEY);

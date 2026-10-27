@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from pathlib import PureWindowsPath
 
 
 def _normalize_followup_question(question: str) -> str:
@@ -18,13 +17,6 @@ def _cached_followup_response(request: str, followups: list[dict]) -> str | None
         if _normalize_followup_question(followup.get("question", "")) != normalized_request:
             continue
         response = followup.get("answer", "").strip()
-        citation = PureWindowsPath(followup.get("source", "").strip()).name
-        chunk_index = followup.get("chunk_index", "").strip()
-        if citation:
-            response += f"\n\nSource: {citation}"
-            if chunk_index:
-                response += f", chunk {chunk_index}"
-            response += "."
         return response or None
     return None
 
