@@ -1128,10 +1128,7 @@ def test_followup_answers_are_served_from_cache_with_citation() -> None:
 
     response = _cached_followup_response("What is MFA?!", followups)
 
-    assert response == (
-        "MFA uses more than one verification factor.\n\n"
-        "Source: security.csv, chunk 12."
-    )
+    assert response == "MFA uses more than one verification factor."
 
 
 def test_cached_followup_citation_hides_absolute_source_path() -> None:
@@ -1148,7 +1145,7 @@ def test_cached_followup_citation_hides_absolute_source_path() -> None:
     )
 
     assert response is not None
-    assert "Source: security.csv, chunk 12." in response
+    assert response == "MFA uses more than one verification factor."
     assert "Alice" not in response
 
 
@@ -1205,7 +1202,7 @@ def test_root_delays_cached_followup_without_running_specialists(monkeypatch) ->
     assert final_event.content is not None and final_event.content.parts
     final_text = final_event.content.parts[0].text or ""
     assert "MFA uses more than one verification factor." in final_text
-    assert "Source: security.csv, chunk 12." in final_text
+    assert "Source:" not in final_text
 
 
 async def _run_conversation(messages: list[str]) -> list[list[Event]]:
@@ -1286,7 +1283,7 @@ def test_related_questions_travel_as_metadata_and_send_as_cached_answers(monkeyp
     assert content is not None and content.parts
     text = content.parts[0].text or ""
     assert "MFA uses more than one verification factor." in text
-    assert "Source: security.csv, chunk 12." in text
+    assert "Source:" not in text
 
 
 def test_qdrant_outage_is_reported_as_retrieval_runtime_error(monkeypatch) -> None:

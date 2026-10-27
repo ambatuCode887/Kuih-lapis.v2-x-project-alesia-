@@ -331,6 +331,62 @@ a:focus-visible {
   list-style: none;
 }
 
+.rail-session {
+  list-style: none;
+}
+
+.rail-session-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-session-button:hover,
+.rail-session-button.is-active {
+  background: var(--paper);
+}
+
+.rail-session-chevron {
+  width: 12px;
+  color: var(--ink-2);
+}
+
+.rail-session-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.rail-session-count {
+  min-width: 20px;
+  color: var(--ink-2);
+  font-size: 11px;
+  text-align: right;
+}
+
+.rail-session-checks {
+  margin: 0 0 4px 12px;
+  padding: 0 0 0 8px;
+  border-left: 1px solid var(--line);
+  list-style: none;
+}
+
+.rail-session-empty {
+  padding: 5px 8px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
 .rail-item {
   display: flex;
   align-items: center;

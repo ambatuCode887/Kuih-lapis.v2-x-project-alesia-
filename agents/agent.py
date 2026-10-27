@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import AsyncGenerator
 
 from google.genai import types
@@ -18,6 +19,12 @@ from agents.guards import _attachment_prompt_injection_notice, _requests_private
 from agents.integrity import verify_agent_definitions
 from agents.model_failover import LlmFailoverExhaustedError
 from agents.root_prompt import _ROOT_INSTRUCTION
+from agents.session_memory import (
+    format_memory,
+    get_session_memory,
+    has_prior_attachment_context,
+    remember_turn,
+)
 # Re-exported so existing imports from agents.agent keep working.
 from agents.routing import (
     _GIBBERISH_REPLY,
@@ -78,6 +85,22 @@ def _status_event(author: str, invocation_id: str, status: str) -> Event:
 
 def _joined_text(parts: list[types.Part] | None, separator: str = "\n") -> str:
     return separator.join(part.text for part in parts or [] if part.text)
+
+
+def _clean_user_response(text: str) -> str:
+    text = re.sub(r"(?im)^\s*Sources?:.*(?:\r?\n|$)", "", text)
+    text = re.sub(
+        r"(?is)\(?\s*(?:Note:\s*)?The above definition is a general answer "
+        r"that is not from the knowledge base and is not verified\.?\s*\)?",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?im)^\s*General answer that is not from the knowledge base and is not verified:?\s*",
+        "",
+        text,
+    )
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 def _hide_specialist_text(event: Event) -> None:
@@ -337,6 +360,7 @@ class RequestRouter(Agent):
             ctx.session.state.get("cached_followups", []),
         )
         if cached_response:
+            remember_turn(ctx.session.state, user_request, cached_response)
             yield _status_event(self.name, ctx.invocation_id, "Retrieving data\u2026")
             await asyncio.sleep(_CACHED_FOLLOWUP_DELAY_SECONDS)
             yield Event(
@@ -361,6 +385,7 @@ class RequestRouter(Agent):
                     custom_metadata={"kind": "domain_stats", "domain": download_domain, **counts},
                 )
             assessment = download_assessment(download_domain, counts)
+            remember_turn(ctx.session.state, user_request, assessment["assessment"])
             yield Event(
                 author="url_check_agent",
                 invocation_id=ctx.invocation_id,
@@ -380,6 +405,26 @@ class RequestRouter(Agent):
             attachment_present=attachment_present,
             user_request=user_request,
         )
+        if (
+            not attachment_present
+            and has_prior_attachment_context(ctx.session.state)
+            and any(
+                term in user_request.casefold()
+                for term in (
+                    "this image",
+                    "the image",
+                    "that image",
+                    "this screenshot",
+                    "the screenshot",
+                    "the attachment",
+                    "this attachment",
+                    "first check",
+                    "previous check",
+                    "earlier check",
+                )
+            )
+        ):
+            target_name = "message_agent"
         qr_hosts = qr_link_hosts(qr_payloads)
         if qr_hosts:
             target_name = "message_agent"
@@ -417,6 +462,16 @@ class RequestRouter(Agent):
                     invocation_id=ctx.invocation_id,
                     custom_metadata={"kind": "domain_stats", "domain": domain, **counts},
                 )
+
+        prior_context = format_memory(
+            get_session_memory(ctx.session.state), user_request
+        )
+        if prior_context:
+            content = types.Content(
+                role="user",
+                parts=[*(content.parts or []), types.Part(text=prior_context)],
+            )
+            ctx.user_content = content
 
         initial_report = ""
         try:
@@ -477,11 +532,15 @@ class RequestRouter(Agent):
             )
 
         ctx.session.state["root_specialist_report"] = final_report
+        remember_turn(ctx.session.state, user_request, final_report)
         yield _status_event(self.name, ctx.invocation_id, "Generating a response\u2026")
         root_answer_returned = False
         try:
             async for event in super()._run_async_impl(ctx):
                 if event.author == self.name and event.is_final_response() and event.content:
+                    for part in event.content.parts or []:
+                        if part.text:
+                            part.text = _clean_user_response(part.text)
                     root_answer_returned = any(
                         part.text and part.text.strip()
                         for part in event.content.parts or []
@@ -500,7 +559,9 @@ class RequestRouter(Agent):
                     role="model",
                     parts=[
                         types.Part(
-                            text=_fallback_root_response(target_name, initial_report)
+                            text=_clean_user_response(
+                                _fallback_root_response(target_name, initial_report)
+                            )
                         )
                     ],
                 ),

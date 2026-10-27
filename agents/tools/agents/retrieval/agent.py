@@ -12,6 +12,7 @@ from google.adk.models.llm_request import LlmRequest
 from agents.config import agent_model
 from agents.model_failover import LlmFailoverExhaustedError
 from agents.scope import OUT_OF_SCOPE_REPLY, SCOPE_RULES
+from agents.session_memory import PRIOR_CONTEXT_CLOSE, PRIOR_CONTEXT_OPEN
 from agents.tools.functions.retrieve.credential_stuffing import format_passage, retrieve_knowledge
 from agents.tools.functions.unanswered_log import append_unanswered
 
@@ -28,11 +29,33 @@ _QA_RECORD = re.compile(
     r"\s*Question:\s*(?P<question>.*?)\s*\nAnswer:\s*(?P<answer>.*?)\s*\Z",
     re.IGNORECASE | re.DOTALL,
 )
+_QUERY_STOPWORDS = {
+    "a", "an", "and", "are", "can", "does", "how", "is", "it", "of",
+    "the", "what", "when", "where", "which", "who", "why", "with",
+}
+_GENERIC_QUERY_TERMS = {"attack", "attacks", "hacker", "hackers", "security", "threat"}
 
 
 def _session_state(ctx: InvocationContext) -> dict:
     state = getattr(getattr(ctx, "session", None), "state", None)
     return state if state is not None else {}
+
+
+def _retrieval_matches_query(query: str, results: list[dict]) -> bool:
+    """Reject topically unrelated vector hits before composing a knowledge answer."""
+    terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", query.casefold())
+        if (
+            len(term) >= 3
+            and term not in _QUERY_STOPWORDS
+            and term not in _GENERIC_QUERY_TERMS
+        )
+    }
+    if not terms:
+        return bool(results)
+    evidence = " ".join(str(result.get("text", "")) for result in results).casefold()
+    return any(term in evidence for term in terms)
 
 
 async def generate_model_answer(question: str) -> str:
@@ -55,7 +78,7 @@ async def generate_model_answer(question: str) -> str:
 
 
 async def _knowledge_miss_report(question: str) -> str:
-    report = "No relevant context was found in the knowledge base."
+    report = "I don't have enough information to answer that reliably right now."
     try:
         answer = await generate_model_answer(question)
     except LlmFailoverExhaustedError:
@@ -76,7 +99,7 @@ async def _knowledge_miss_report(question: str) -> str:
 
     if not answer:
         return report
-    return f"{report}\nModel answer (not from the knowledge base, unverified):\n{answer}"
+    return answer
 
 
 def _cached_followups(results: list[dict], query: str) -> list[dict[str, str]]:
@@ -116,6 +139,8 @@ class RetrievalAgent(BaseAgent):
             if part.text
             and "[BEGIN UNTRUSTED ATTACHMENT DATA" not in part.text
             and "[Extracted attachment text;" not in part.text
+            and PRIOR_CONTEXT_OPEN not in part.text
+            and PRIOR_CONTEXT_CLOSE not in part.text
         ).strip()
         state = _session_state(ctx)
         memory = list(state.get("knowledge_memory") or [])
@@ -138,7 +163,7 @@ class RetrievalAgent(BaseAgent):
             else:
                 results = retrieval.get("results", [])
                 followups = _cached_followups(results, query)
-                if not results:
+                if not _retrieval_matches_query(query, results):
                     report = await _knowledge_miss_report(query)
                 else:
                     passages = [format_passage(index, result) for index, result in enumerate(results, start=1)]
