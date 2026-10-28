@@ -223,6 +223,15 @@ Without `NEXT_PUBLIC_API_URL`, the web checker runs in demo mode with sample rep
 
 Configure `REVIEW_SHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_FILE`, and share the sheet with the service account. The sheet needs `timestamp_utc`, `question`, `status`, and either `answer` or `model_answer` columns. Only rows marked `approved_review` are upserted.
 
+For the Render Docker deployment, add the service-account JSON under **Environment → Secret Files** with the filename `alesia-sheets.json`. Set these environment variables in the Render service:
+
+```dotenv
+REVIEW_SHEET_ID=your_google_sheet_id
+GOOGLE_SERVICE_ACCOUNT_FILE=/etc/secrets/alesia-sheets.json
+```
+
+Do not commit the JSON file. The Docker image grants the runtime user access to Render's mounted secret-file group, while `.dockerignore` prevents local credential files from being copied into the image.
+
 Preview the sync first:
 
 ```powershell

@@ -469,7 +469,10 @@ class RequestRouter(Agent):
         if prior_context:
             content = types.Content(
                 role="user",
-                parts=[*(content.parts or []), types.Part(text=prior_context)],
+                parts=[
+                    *((content.parts if content else None) or []),
+                    types.Part(text=prior_context),
+                ],
             )
             ctx.user_content = content
 

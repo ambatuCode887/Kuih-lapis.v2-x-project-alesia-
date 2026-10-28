@@ -79,6 +79,7 @@ async def generate_model_answer(question: str) -> str:
 
 async def _knowledge_miss_report(question: str) -> str:
     report = "I don't have enough information to answer that reliably right now."
+    logger.warning("Knowledge miss detected; preparing review entry")
     try:
         answer = await generate_model_answer(question)
     except LlmFailoverExhaustedError:
@@ -95,7 +96,7 @@ async def _knowledge_miss_report(question: str) -> str:
     try:
         await asyncio.to_thread(append_unanswered, question, answer, status)
     except OSError as error:
-        logger.warning("Could not log unanswered question: %s", error)
+        logger.exception("Could not log unanswered question to the review destination")
 
     if not answer:
         return report
