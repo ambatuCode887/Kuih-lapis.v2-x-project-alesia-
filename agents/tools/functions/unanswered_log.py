@@ -36,7 +36,9 @@ def append_unanswered(question: str, model_answer: str, status: str) -> None:
         "model_answer": _safe_cell(model_answer),
         "status": status,
     }
-    if review_sheet.is_configured():
+    configured = review_sheet.is_configured()
+    logger.warning("Review destination selected: google_sheets=%s", configured)
+    if configured:
         review_sheet.append_row([row[field] for field in FIELDS])
         logger.warning("Unanswered question appended to Google Sheets (status=%s)", status)
         return
