@@ -13,6 +13,11 @@ _TOKEN = re.compile(
     r"\b(?:sk-[A-Z0-9_-]{16,}|AIza[0-9A-Za-z_-]{20,}|"
     r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b"
 )
+_PASSWORD = re.compile(
+    r"(?P<label>\b(?:password|passphrase|passwd|pwd)\b\s*(?:is|=|:)\s*)"
+    r"(?P<value>\"[^\r\n\"]*\"|'[^\r\n']*'|[^\s,.;!?]+)",
+    re.IGNORECASE,
+)
 _URL = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
 
 _SENSITIVE_WORD = re.compile(
@@ -46,6 +51,10 @@ def sanitize_review_text(value: str) -> str:
     """Redact common PII, credentials, private URL parameters, and slurs."""
     text = str(value or "")
     text = _URL.sub(_redact_url, text)
+    text = _PASSWORD.sub(
+        lambda match: f"{match.group('label')}[REDACTED_PASSWORD]",
+        text,
+    )
     text = _TOKEN.sub("[REDACTED_TOKEN]", text)
     text = _EMAIL.sub("[REDACTED_EMAIL]", text)
     text = _MALAYSIAN_ID.sub("[REDACTED_ID]", text)
