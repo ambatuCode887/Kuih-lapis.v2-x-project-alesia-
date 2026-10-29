@@ -8,6 +8,7 @@ from pathlib import Path
 
 from agents.config import PROJECT_ROOT, env
 from agents.tools.functions import review_sheet
+from agents.tools.functions.review_sanitizer import sanitize_review_text
 
 FIELDS = ["timestamp_utc", "question", "model_answer", "status"]
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
@@ -32,8 +33,8 @@ def append_unanswered(question: str, model_answer: str, status: str) -> None:
     """Append one row; existing rows are never rewritten or deleted."""
     row = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "question": _safe_cell(question),
-        "model_answer": _safe_cell(model_answer),
+        "question": _safe_cell(sanitize_review_text(question)),
+        "model_answer": _safe_cell(sanitize_review_text(model_answer)),
         "status": status,
     }
     configured = review_sheet.is_configured()

@@ -16,6 +16,7 @@ Alesia brings together a browser extension, a web checker, and a multi-agent AI 
 - **Checks links and download sources.** Look up URL, domain, or IP reputation through VirusTotal. The browser extension can pause a download while it checks the source domain.
 - **Answers cybersecurity questions with retrieved evidence.** The knowledge assistant searches a Qdrant collection and grounds answers in its retrieved records.
 - **Improves through human review.** Unanswered questions can be sent to a review sheet. Only approved entries are embedded and added to the knowledge base.
+- **Sanitizes the review queue.** Common email addresses, phone numbers, national ID patterns, credentials, private URL parameters, and abusive language are redacted before unanswered content is written to Google Sheets or the local review log. This is a defense-in-depth filter, not a complete PII detector.
 - **Keeps safety guidance close.** The extension includes optional awareness reminders and clear actions when a download reputation check needs attention.
 
 ## How it works
