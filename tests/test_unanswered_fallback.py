@@ -100,6 +100,36 @@ def test_formula_like_cells_are_stored_as_text(monkeypatch, tmp_path) -> None:
     assert rows[0]["model_answer"] == "'+1 555"
 
 
+def test_private_and_sensitive_content_is_redacted_before_storage(monkeypatch, tmp_path) -> None:
+    log_path = tmp_path / "unanswered.csv"
+    monkeypatch.setenv("UNANSWERED_LOG_PATH", str(log_path))
+
+    append_unanswered(
+        "My IC is 900101-14-5678 and email me at user@example.com. "
+        "Use https://example.com/reset?token=secret. My password is "
+        "\"Correct Horse Battery Staple\".",
+        "That message contains shit and a phone number +60 12-345 6789. "
+        "The pwd: hunter2.",
+        "pending_review",
+    )
+
+    [row] = _rows(log_path)
+    assert "900101-14-5678" not in row["question"]
+    assert "user@example.com" not in row["question"]
+    assert "token=secret" not in row["question"]
+    assert "Correct Horse Battery Staple" not in row["question"]
+    assert "+60 12-345 6789" not in row["model_answer"]
+    assert "hunter2" not in row["model_answer"]
+    assert "[REDACTED_ID]" in row["question"]
+    assert "[REDACTED_EMAIL]" in row["question"]
+    assert "[REDACTED_QUERY]" in row["question"]
+    assert "[REDACTED_PASSWORD]" in row["question"]
+    assert "[REDACTED_PHONE]" in row["model_answer"]
+    assert "[REDACTED_PASSWORD]" in row["model_answer"]
+    assert "shit" not in row["model_answer"].casefold()
+    assert "[REDACTED_SENSITIVE_LANGUAGE]" in row["model_answer"]
+
+
 def test_log_appends_without_rewriting_earlier_rows(monkeypatch, tmp_path) -> None:
     log_path = tmp_path / "unanswered.csv"
     monkeypatch.setenv("UNANSWERED_LOG_PATH", str(log_path))

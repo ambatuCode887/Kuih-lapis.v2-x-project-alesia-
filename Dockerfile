@@ -15,7 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Agent code is read-only for the app user; only data/ (the unanswered-question log) is writable.
-RUN useradd --system --uid 10001 --no-create-home appuser \
+RUN if [ -z "$(getent group 1000)" ]; then groupadd --gid 1000 rendersecrets; fi \
+    && useradd --system --uid 10001 --no-create-home appuser \
+    && usermod --append --groups 1000 appuser \
     && chmod -R a-w agents \
     && mkdir -p data \
     && chown appuser data

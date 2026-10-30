@@ -16,6 +16,7 @@ Alesia brings together a browser extension, a web checker, and a multi-agent AI 
 - **Checks links and download sources.** Look up URL, domain, or IP reputation through VirusTotal. The browser extension can pause a download while it checks the source domain.
 - **Answers cybersecurity questions with retrieved evidence.** The knowledge assistant searches a Qdrant collection and grounds answers in its retrieved records.
 - **Improves through human review.** Unanswered questions can be sent to a review sheet. Only approved entries are embedded and added to the knowledge base.
+- **Sanitizes the review queue.** Common email addresses, phone numbers, national ID patterns, credentials, private URL parameters, and abusive language are redacted before unanswered content is written to Google Sheets or the local review log. This is a defense-in-depth filter, not a complete PII detector.
 - **Keeps safety guidance close.** The extension includes optional awareness reminders and clear actions when a download reputation check needs attention.
 
 ## How it works
@@ -222,6 +223,15 @@ Without `NEXT_PUBLIC_API_URL`, the web checker runs in demo mode with sample rep
 ### Sync approved review-sheet entries
 
 Configure `REVIEW_SHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_FILE`, and share the sheet with the service account. The sheet needs `timestamp_utc`, `question`, `status`, and either `answer` or `model_answer` columns. Only rows marked `approved_review` are upserted.
+
+For the Render Docker deployment, add the service-account JSON under **Environment → Secret Files** with the filename `alesia-sheets.json`. Set these environment variables in the Render service:
+
+```dotenv
+REVIEW_SHEET_ID=your_google_sheet_id
+GOOGLE_SERVICE_ACCOUNT_FILE=/etc/secrets/alesia-sheets.json
+```
+
+Do not commit the JSON file. The Docker image grants the runtime user access to Render's mounted secret-file group, while `.dockerignore` prevents local credential files from being copied into the image.
 
 Preview the sync first:
 

@@ -79,6 +79,7 @@ async def generate_model_answer(question: str) -> str:
 
 async def _knowledge_miss_report(question: str) -> str:
     report = "I don't have enough information to answer that reliably right now."
+    logger.warning("Knowledge miss detected; preparing review entry")
     try:
         answer = await generate_model_answer(question)
     except LlmFailoverExhaustedError:
@@ -95,7 +96,7 @@ async def _knowledge_miss_report(question: str) -> str:
     try:
         await asyncio.to_thread(append_unanswered, question, answer, status)
     except OSError as error:
-        logger.warning("Could not log unanswered question: %s", error)
+        logger.exception("Could not log unanswered question to the review destination")
 
     if not answer:
         return report
@@ -163,9 +164,19 @@ class RetrievalAgent(BaseAgent):
             else:
                 results = retrieval.get("results", [])
                 followups = _cached_followups(results, query)
-                if not _retrieval_matches_query(query, results):
+                matches_query = _retrieval_matches_query(query, results)
+                top_score = results[0].get("score") if results else None
+                logger.warning(
+                    "Qdrant retrieval completed: results=%d top_score=%s relevant=%s",
+                    len(results),
+                    top_score,
+                    matches_query,
+                )
+                if not matches_query:
+                    logger.warning("Qdrant miss confirmed; running model fallback and review logging")
                     report = await _knowledge_miss_report(query)
                 else:
+                    logger.warning("Qdrant match found; no unanswered review row will be created")
                     passages = [format_passage(index, result) for index, result in enumerate(results, start=1)]
                     report = "Retrieved evidence:\n" + "\n\n".join(passages)
 
