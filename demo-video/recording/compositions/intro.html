@@ -1,0 +1,48 @@
+<template>
+  <style>
+      #root { position: absolute; inset: 0; overflow: hidden; font-family: "Inter", sans-serif; color: #1D1D1F; }
+      #root * { box-sizing: border-box; }
+      .bg { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(160deg, #FFFFFF 0%, #F1F2F4 45%, #DCDFE4 100%); }
+      .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.85; }
+      #i-b1 { left: -260px; top: -320px; width: 1100px; height: 1100px; background: #FFFFFF; }
+      #i-b2 { left: 1060px; top: 380px; width: 1000px; height: 1000px; background: #D9DCE1; }
+      #i-b3 { left: 300px; top: 560px; width: 900px; height: 900px; background: #F7F8FA; }
+      #i-b4 { left: 1260px; top: -300px; width: 800px; height: 800px; background: #CDD1D7; }
+
+      .card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+      .mark { display: grid; place-items: center; filter: drop-shadow(0 14px 22px rgba(27,42,65,0.18)); }
+      .big { font-size: 120px; line-height: 1.05; font-weight: 900; letter-spacing: -0.035em; color: #1D1D1F; display: flex; }
+      .big span { display: inline-block; }
+      .sub { font-size: 42px; font-weight: 400; color: #515154; }
+
+  </style>
+  <div id="root" data-composition-id="intro" data-width="1920" data-height="1080">
+    <div class="bg" id="i-bg" data-layout-ignore>
+      <div class="blob" id="i-b1"></div>
+      <div class="blob" id="i-b2"></div>
+      <div class="blob" id="i-b3"></div>
+      <div class="blob" id="i-b4"></div>
+    </div>
+    <div class="card">
+      <div class="mark" id="i-mark"><svg width="104" height="113" viewBox="102 38 172 187"><g fill="none" stroke="#1B2A41" stroke-width="15" stroke-linecap="round"><path d="M110 217V123.5A78 78 0 0 1 266 123.5V217"/><path d="M153 217V135A35.5 35.5 0 0 1 224 135V217"/></g></svg></div>
+      <div class="big" id="i-title"><span class="il">P</span><span class="il">r</span><span class="il">o</span><span class="il">j</span><span class="il">e</span><span class="il">c</span><span class="il">t</span><span class="il">&nbsp;</span><span class="il">A</span><span class="il">l</span><span class="il">e</span><span class="il">s</span><span class="il">i</span><span class="il">a</span></div>
+      <div class="sub" id="i-sub">Check anything suspicious.</div>
+    </div>
+  </div>
+  <script>
+    gsap.set("#i-title .il", { y: 10, opacity: 1 });
+    gsap.set("#i-sub", { opacity: 0, y: 18 });
+    gsap.set("#i-mark", { opacity: 1, y: 0, scale: 0.92, rotation: -8 });
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#i-mark", { scale: 1, rotation: 0, duration: 0.9, ease: "back.out(1.8)" }, 0);
+    tl.to("#i-title .il", { y: 0, duration: 0.6, ease: "power3.out", stagger: 0.025 }, 0);
+    tl.to("#i-sub", { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.45);
+    // everything lifts away before the window opens
+    tl.to("#i-mark", { opacity: 0, y: -60, duration: 0.45, ease: "power2.in" }, 2.2);
+    tl.to("#i-title .il", { opacity: 0, y: -50, duration: 0.4, ease: "power2.in", stagger: 0.012 }, 2.25);
+    tl.to("#i-sub", { opacity: 0, y: -40, duration: 0.35, ease: "power2.in" }, 2.35);
+    // the intro's wallpaper gives way to the same wallpaper underneath, where the window is opening
+    tl.fromTo("#i-bg", { opacity: 1 }, { opacity: 0, duration: 0.5, ease: "power1.inOut" }, 2.8);
+    window.__timelines["intro"] = tl;
+  </script>
+</template>

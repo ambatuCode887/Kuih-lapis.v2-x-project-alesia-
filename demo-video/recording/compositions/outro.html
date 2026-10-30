@@ -1,0 +1,40 @@
+<template>
+  <style>
+      #root { position: absolute; inset: 0; overflow: hidden; font-family: "Inter", sans-serif; color: #1D1D1F; }
+      #root * { box-sizing: border-box; }
+      .bg { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(160deg, #FFFFFF 0%, #F1F2F4 45%, #DCDFE4 100%); }
+      .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.85; }
+      #e-b1 { left: -260px; top: -320px; width: 1100px; height: 1100px; background: #FFFFFF; }
+      #e-b2 { left: 1060px; top: 380px; width: 1000px; height: 1000px; background: #D9DCE1; }
+      #e-b3 { left: 300px; top: 560px; width: 900px; height: 900px; background: #F7F8FA; }
+      #e-b4 { left: 1260px; top: -300px; width: 800px; height: 800px; background: #CDD1D7; }
+
+      .card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+      .mark { display: grid; place-items: center; filter: drop-shadow(0 14px 22px rgba(27,42,65,0.18)); }
+      .big { font-size: 120px; line-height: 1.05; font-weight: 900; letter-spacing: -0.035em; color: #1D1D1F; display: flex; }
+      .big span { display: inline-block; }
+      .sub { font-size: 42px; font-weight: 400; color: #515154; }
+
+  </style>
+  <div id="root" data-composition-id="outro" data-width="1920" data-height="1080">
+    <div class="bg" id="e-bg" data-layout-ignore>
+      <div class="blob" id="e-b1"></div>
+      <div class="blob" id="e-b2"></div>
+      <div class="blob" id="e-b3"></div>
+      <div class="blob" id="e-b4"></div>
+    </div>
+    <div class="card">
+      <div class="mark" id="e-mark"><svg width="104" height="113" viewBox="102 38 172 187"><g fill="none" stroke="#1B2A41" stroke-width="15" stroke-linecap="round"><path d="M110 217V123.5A78 78 0 0 1 266 123.5V217"/><path d="M153 217V135A35.5 35.5 0 0 1 224 135V217"/></g></svg></div>
+      <div class="big" id="e-title"><span class="el">C</span><span class="el">h</span><span class="el">e</span><span class="el">c</span><span class="el">k</span><span class="el">&nbsp;</span><span class="el">i</span><span class="el">t</span><span class="el">&nbsp;</span><span class="el">b</span><span class="el">e</span><span class="el">f</span><span class="el">o</span><span class="el">r</span><span class="el">e</span><span class="el">&nbsp;</span><span class="el">y</span><span class="el">o</span><span class="el">u</span><span class="el">&nbsp;</span><span class="el">c</span><span class="el">l</span><span class="el">i</span><span class="el">c</span><span class="el">k</span><span class="el">.</span></div>
+      <div class="sub" id="e-sub">Project Alesia</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#e-mark", { opacity: 0, scale: 0.6, rotation: -12 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.7, ease: "back.out(1.8)" }, 0.15);
+    tl.fromTo("#e-title .el", { opacity: 0, y: 60, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.6, ease: "power3.out", stagger: 0.03 }, 0.4);
+    tl.fromTo("#e-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 1.5);
+    tl.fromTo("#e-title", { scale: 1 }, { scale: 1.03, duration: 4.1, ease: "sine.inOut" }, 0.4);
+    window.__timelines["outro"] = tl;
+  </script>
+</template>

@@ -1,0 +1,230 @@
+<template>
+  <style>
+      #root { position: absolute; inset: 0; overflow: hidden; font-family: "Inter", sans-serif; color: #1D1D1F; }
+      #root * { box-sizing: border-box; }
+      .bg { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(160deg, #FFFFFF 0%, #F1F2F4 45%, #DCDFE4 100%); }
+      .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.85; }
+      #d-b1 { left: -260px; top: -320px; width: 1100px; height: 1100px; background: #FFFFFF; }
+      #d-b2 { left: 1060px; top: 380px; width: 1000px; height: 1000px; background: #D9DCE1; }
+      #d-b3 { left: 300px; top: 560px; width: 900px; height: 900px; background: #F7F8FA; }
+      #d-b4 { left: 1260px; top: -300px; width: 800px; height: 800px; background: #CDD1D7; }
+
+      #menubar { position: absolute; left: 0; top: 0; width: 1920px; height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px;
+        background: rgba(255,255,255,0.42); backdrop-filter: blur(24px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.5); font-size: 17px; color: #1D1D1F; }
+      #menubar .ml, #menubar .mr { display: flex; align-items: center; gap: 26px; }
+      #menubar .app { font-weight: 700; }
+      #float { position: absolute; left: 230px; top: 58px; width: 1460px; height: 825px; }
+      #win { position: absolute; inset: 0; border-radius: 14px; overflow: hidden; background: #000;
+        box-shadow: 0 40px 90px rgba(29,29,31,0.28), 0 10px 24px rgba(29,29,31,0.12), 0 0 0 1px rgba(0,0,0,0.18); }
+      #titlebar { position: absolute; left: 0; top: 0; width: 1460px; height: 40px; display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(#F1F1F3, #E6E6E9); border-bottom: 1px solid rgba(0,0,0,0.12); font-size: 16px; font-weight: 700; color: #4A4A4F; }
+      .lights { position: absolute; left: 16px; top: 13px; display: flex; gap: 8px; }
+      .lights i { width: 14px; height: 14px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.25); }
+      #recarea { position: absolute; left: 0; top: 40px; width: 1460px; height: 785px; overflow: hidden; }
+      #hdr { position: absolute; left: 0; top: 0; width: 1460px; height: 62px; overflow: hidden; }
+      #body { position: absolute; left: 0; top: 62px; width: 1460px; height: 723px; overflow: hidden; }
+      #stage { position: absolute; left: 0; top: 0; width: 1460px; height: 723px; }
+      .rec { position: absolute; left: 0; width: 1460px; height: 785px; object-fit: cover; }
+      #demo-h { top: 0; }
+      #demo { top: -62px; }
+      .cap { position: absolute; left: 0; top: 906px; width: 1920px; height: 104px; display: flex; justify-content: center; align-items: center; }
+      .pill { display: flex; align-items: center; gap: 16px; height: 76px; padding: 0 34px 0 12px; border-radius: 38px;
+        background: rgba(255,255,255,0.72); backdrop-filter: blur(22px) saturate(180%); border: 1px solid rgba(255,255,255,0.75);
+        box-shadow: 0 18px 40px rgba(29,29,31,0.16), inset 0 1px 0 rgba(255,255,255,0.9); font-size: 34px; font-weight: 700; color: #1D1D1F; white-space: nowrap; }
+      .num { width: 52px; height: 52px; border-radius: 50%; background: #2C2C2E; color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 700; }
+      #bar { position: absolute; left: 230px; top: 1046px; width: 1460px; height: 6px; border-radius: 3px; background: rgba(29,29,31,0.10); }
+      #barfill { position: absolute; inset: 0; border-radius: 3px; background: #2C2C2E; transform-origin: 0 50%; }
+
+  </style>
+  <div id="root" data-composition-id="demo" data-width="1920" data-height="1080">
+    <div class="bg" id="d-bg" data-layout-ignore>
+      <div class="blob" id="d-b1"></div>
+      <div class="blob" id="d-b2"></div>
+      <div class="blob" id="d-b3"></div>
+      <div class="blob" id="d-b4"></div>
+    </div>
+    <div id="menubar">
+      <div class="ml"><span class="app">Project Alesia</span><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span></div>
+      <div class="mr">
+        <svg width="22" height="16" viewBox="0 0 24 18" fill="none" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round"><path d="M2 6.5a15 15 0 0 1 20 0M5.5 10a10 10 0 0 1 13 0M9 13.5a5 5 0 0 1 6 0"/><circle cx="12" cy="16.5" r="0.8" fill="#1D1D1F"/></svg>
+        <svg width="30" height="16" viewBox="0 0 30 16" fill="none"><rect x="1" y="2" width="24" height="12" rx="3.5" stroke="#1D1D1F" stroke-width="1.6"/><rect x="3.5" y="4.5" width="17" height="7" rx="1.8" fill="#1D1D1F"/><rect x="26.5" y="6" width="2" height="4" rx="1" fill="#1D1D1F"/></svg>
+        <span>Tue 28 Oct&nbsp;&nbsp;9:41 AM</span>
+      </div>
+    </div>
+    <div id="float">
+      <div id="win">
+        <div id="titlebar"><div class="lights"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>Project Alesia</div>
+        <div id="recarea">
+          <!-- The cut screen recording (silent), shown twice from one file: the fixed tab strip, and the body that zooms.
+               Replace assets/video/demo-cut.mp4 to swap it. -->
+          <div id="hdr">
+            <video id="demo-h" class="rec clip" src="assets/video/demo-cut.mp4" data-start="0.15" data-duration="139.6" data-track-index="0" muted playsinline></video>
+          </div>
+          <div id="body">
+            <div id="stage">
+              <video id="demo" class="rec clip" src="assets/video/demo-cut.mp4" data-start="0.15" data-duration="139.6" data-track-index="1" muted playsinline></video>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="cap1" class="cap clip" data-start="0.15" data-duration="2.9" data-track-index="3">
+      <div class="pill" id="pill1"><span class="num">1</span><span class="txt">Open Project Alesia in Chrome</span></div>
+    </div>
+    <div id="cap2" class="cap clip" data-start="3.15" data-duration="2.9" data-track-index="3">
+      <div class="pill" id="pill2"><span class="num">2</span><span class="txt">Allow notifications so it can warn you</span></div>
+    </div>
+    <div id="cap3" class="cap clip" data-start="6.15" data-duration="2.9" data-track-index="3">
+      <div class="pill" id="pill3"><span class="num">3</span><span class="txt">Open it full page</span></div>
+    </div>
+    <div id="cap4" class="cap clip" data-start="9.15" data-duration="2.8" data-track-index="3">
+      <div class="pill" id="pill4"><span class="num">4</span><span class="txt">Pick a look you like</span></div>
+    </div>
+    <div id="cap5" class="cap clip" data-start="12.15" data-duration="7.3" data-track-index="3">
+      <div class="pill" id="pill5"><span class="num">5</span><span class="txt">Gentle safety reminders, right on time</span></div>
+    </div>
+    <div id="cap6" class="cap clip" data-start="19.65" data-duration="10.4" data-track-index="3">
+      <div class="pill" id="pill6"><span class="num">6</span><span class="txt">Ask anything about staying safe</span></div>
+    </div>
+    <div id="cap7" class="cap clip" data-start="31.65" data-duration="6.2" data-track-index="3">
+      <div class="pill" id="pill7"><span class="num">7</span><span class="txt">Paste a suspicious link</span></div>
+    </div>
+    <div id="cap8" class="cap clip" data-start="38.05" data-duration="12.6" data-track-index="3">
+      <div class="pill" id="pill8"><span class="num">8</span><span class="txt">A clear verdict, and the reasons why</span></div>
+    </div>
+    <div id="cap9" class="cap clip" data-start="51.85" data-duration="11.2" data-track-index="3">
+      <div class="pill" id="pill9"><span class="num">9</span><span class="txt">Try downloading a file from a risky site</span></div>
+    </div>
+    <div id="cap10" class="cap clip" data-start="63.35" data-duration="3.3" data-track-index="3">
+      <div class="pill" id="pill10"><span class="num">10</span><span class="txt">The download guard steps in first</span></div>
+    </div>
+    <div id="cap11" class="cap clip" data-start="67.65" data-duration="9.0" data-track-index="3">
+      <div class="pill" id="pill11"><span class="num">11</span><span class="txt">Send a photo of a QR code</span></div>
+    </div>
+    <div id="cap12" class="cap clip" data-start="76.95" data-duration="7.7" data-track-index="3">
+      <div class="pill" id="pill12"><span class="num">12</span><span class="txt">Checked before you scan it</span></div>
+    </div>
+    <div id="cap13" class="cap clip" data-start="85.85" data-duration="8.8" data-track-index="3">
+      <div class="pill" id="pill13"><span class="num">13</span><span class="txt">Send a screenshot of a message</span></div>
+    </div>
+    <div id="cap14" class="cap clip" data-start="94.95" data-duration="8.7" data-track-index="3">
+      <div class="pill" id="pill14"><span class="num">14</span><span class="txt">This looks like a scam, and why</span></div>
+    </div>
+    <div id="cap15" class="cap clip" data-start="104.95" data-duration="18.7" data-track-index="3">
+      <div class="pill" id="pill15"><span class="num">15</span><span class="txt">Or just say your question out loud</span></div>
+    </div>
+    <div id="cap16" class="cap clip" data-start="124.85" data-duration="5.5" data-track-index="3">
+      <div class="pill" id="pill16"><span class="num">16</span><span class="txt">Ask how to protect yourself</span></div>
+    </div>
+    <div id="cap17" class="cap clip" data-start="130.65" data-duration="8.9" data-track-index="3">
+      <div class="pill" id="pill17"><span class="num">17</span><span class="txt">Heard a new scam term? Just ask</span></div>
+    </div>
+    <div id="bar" class="clip" data-start="0.15" data-duration="139.6" data-track-index="4"><div id="barfill"></div></div>
+  </div>
+  <script>
+    gsap.set("#stage", { transformOrigin: "0 0" });
+    gsap.set("#win", { opacity: 0 });
+    gsap.set("#float", { y: 0, scale: 1 });
+    gsap.set("#d-b1", { x: 0, y: 0, scale: 1 });
+    gsap.set("#d-b2", { x: 0, y: 0, scale: 1 });
+    gsap.set("#d-b3", { x: 0, y: 0, scale: 1 });
+    gsap.set("#d-b4", { x: 0, y: 0, scale: 1 });
+    const tl = gsap.timeline({ paused: true });
+    // window opens like a Mac app, and closes away at the end
+    tl.fromTo("#win", { opacity: 0, y: 70, scale: 0.9, filter: "blur(10px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.9, ease: "power3.out" }, 0);
+    tl.fromTo("#menubar", { y: -34 }, { y: 0, duration: 0.6, ease: "power3.out" }, 0.1);
+    tl.to("#win", { opacity: 0, y: -30, scale: 0.94, filter: "blur(8px)", duration: 0.6, ease: "power2.in" }, 139.15);
+    tl.to("#menubar", { y: -34, duration: 0.5, ease: "power2.in" }, 139.15);
+    tl.fromTo("#barfill", { scaleX: 0 }, { scaleX: 1, duration: 139.6, ease: "none" }, 0.15);
+    // wallpaper drifts slowly the whole time
+    tl.to("#d-b1", { x: 160, y: 120, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 0.0);
+    tl.to("#d-b1", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 17.469);
+    tl.to("#d-b1", { x: 160, y: 120, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 34.938);
+    tl.to("#d-b1", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 52.407);
+    tl.to("#d-b1", { x: 160, y: 120, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 69.876);
+    tl.to("#d-b1", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 87.345);
+    tl.to("#d-b1", { x: 160, y: 120, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 104.814);
+    tl.to("#d-b1", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 122.283);
+    tl.to("#d-b2", { x: -140, y: -110, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 0.0);
+    tl.to("#d-b2", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 17.469);
+    tl.to("#d-b2", { x: -140, y: -110, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 34.938);
+    tl.to("#d-b2", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 52.407);
+    tl.to("#d-b2", { x: -140, y: -110, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 69.876);
+    tl.to("#d-b2", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 87.345);
+    tl.to("#d-b2", { x: -140, y: -110, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 104.814);
+    tl.to("#d-b2", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 122.283);
+    tl.to("#d-b3", { x: 120, y: -90, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 0.0);
+    tl.to("#d-b3", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 17.469);
+    tl.to("#d-b3", { x: 120, y: -90, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 34.938);
+    tl.to("#d-b3", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 52.407);
+    tl.to("#d-b3", { x: 120, y: -90, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 69.876);
+    tl.to("#d-b3", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 87.345);
+    tl.to("#d-b3", { x: 120, y: -90, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 104.814);
+    tl.to("#d-b3", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 122.283);
+    tl.to("#d-b4", { x: -90, y: 140, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 0.0);
+    tl.to("#d-b4", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 17.469);
+    tl.to("#d-b4", { x: -90, y: 140, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 34.938);
+    tl.to("#d-b4", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 52.407);
+    tl.to("#d-b4", { x: -90, y: 140, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 69.876);
+    tl.to("#d-b4", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 87.345);
+    tl.to("#d-b4", { x: -90, y: 140, scale: 1.12, duration: 17.469, ease: "sine.inOut" }, 104.814);
+    tl.to("#d-b4", { x: 0, y: 0, scale: 1, duration: 17.469, ease: "sine.inOut" }, 122.283);
+    // window floats
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 0.7);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 10.596);
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 20.492);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 30.388);
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 40.284);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 50.18);
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 60.076);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 69.972);
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 79.868);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 89.764);
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 99.66);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 109.556);
+    tl.to("#float", { y: -10, scale: 1.008, duration: 9.896, ease: "sine.inOut" }, 119.452);
+    tl.to("#float", { y: 0, scale: 1, duration: 9.896, ease: "sine.inOut" }, 129.348);
+    // camera: zoom in on the moment that matters, then ease back out
+    const zooms = [{"t": 9.45, "s": 1.3, "x": 0, "y": -217, "out": 11.95}, {"t": 14.35, "s": 1.3, "x": -438, "y": -217, "out": 17.75}, {"t": 23.05, "s": 1.6, "x": -480, "y": -434, "out": 25.85}, {"t": 37.95, "s": 1.5, "x": -406, "y": -250, "out": 43.65}, {"t": 63.45, "s": 1.3, "x": -219, "y": -40, "out": 66.25}, {"t": 67.95, "s": 1.7, "x": -304, "y": -506, "out": 70.65}, {"t": 77.15, "s": 1.5, "x": -404, "y": -124, "out": 82.65}, {"t": 86.05, "s": 1.7, "x": -304, "y": -506, "out": 88.65}, {"t": 95.05, "s": 1.5, "x": -400, "y": -45, "out": 101.65}, {"t": 105.05, "s": 1.8, "x": -631, "y": -578, "out": 123.65}, {"t": 135.35, "s": 1.5, "x": -404, "y": 0, "out": 139.15}];
+    zooms.forEach((z) => {
+      tl.fromTo("#stage", { scale: 1, x: 0, y: 0 }, { scale: z.s, x: z.x, y: z.y, duration: 0.9, ease: "power3.inOut" }, z.t);
+      tl.to("#stage", { scale: 1, x: 0, y: 0, duration: 0.9, ease: "power3.inOut" }, z.out);
+    });
+    // captions
+    tl.fromTo("#pill1", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 0.2);
+    tl.to("#pill1", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 2.6);
+    tl.fromTo("#pill2", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 3.2);
+    tl.to("#pill2", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 5.6);
+    tl.fromTo("#pill3", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 6.2);
+    tl.to("#pill3", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 8.6);
+    tl.fromTo("#pill4", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 9.2);
+    tl.to("#pill4", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 11.5);
+    tl.fromTo("#pill5", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 12.2);
+    tl.to("#pill5", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 19.0);
+    tl.fromTo("#pill6", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 19.7);
+    tl.to("#pill6", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 29.6);
+    tl.fromTo("#pill7", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 31.7);
+    tl.to("#pill7", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 37.4);
+    tl.fromTo("#pill8", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 38.1);
+    tl.to("#pill8", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 50.2);
+    tl.fromTo("#pill9", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 51.9);
+    tl.to("#pill9", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 62.6);
+    tl.fromTo("#pill10", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 63.4);
+    tl.to("#pill10", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 66.2);
+    tl.fromTo("#pill11", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 67.7);
+    tl.to("#pill11", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 76.2);
+    tl.fromTo("#pill12", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 77.0);
+    tl.to("#pill12", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 84.2);
+    tl.fromTo("#pill13", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 85.9);
+    tl.to("#pill13", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 94.2);
+    tl.fromTo("#pill14", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 95.0);
+    tl.to("#pill14", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 103.2);
+    tl.fromTo("#pill15", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 105.0);
+    tl.to("#pill15", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 123.2);
+    tl.fromTo("#pill16", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 124.9);
+    tl.to("#pill16", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 129.9);
+    tl.fromTo("#pill17", { opacity: 0, y: 26, scale: 0.94, filter: "blur(8px)" }, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, 130.7);
+    tl.to("#pill17", { opacity: 0, y: -14, scale: 0.97, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 139.1);
+    window.__timelines["demo"] = tl;
+  </script>
+</template>
